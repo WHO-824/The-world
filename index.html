@@ -34,11 +34,17 @@
             cursor: grabbing;
         }
         body.history-mode canvas#webgl-canvas,
-        body.history-mode canvas#webgl-canvas:active {
+        body.history-mode canvas#webgl-canvas:active,
+        body.world-mode canvas#webgl-canvas,
+        body.world-mode canvas#webgl-canvas:active,
+        body.paul-mode canvas#webgl-canvas,
+        body.paul-mode canvas#webgl-canvas:active {
             cursor: default;
         }
         body.history-mode.history-hover canvas#webgl-canvas,
-        body.history-mode.history-hover canvas#webgl-canvas:active {
+        body.history-mode.history-hover canvas#webgl-canvas:active,
+        body.world-mode.world-hover canvas#webgl-canvas,
+        body.world-mode.world-hover canvas#webgl-canvas:active {
             cursor: pointer;
         }
 
@@ -68,7 +74,7 @@
             transform: translate(-50%, 8px);
         }
         #command-input {
-            width: 95px;
+            width: 120px;
             padding: 4px 7px;
             background: rgba(28, 28, 28, 0.72);
             border: 1px solid #ffffff;
@@ -77,7 +83,7 @@
             font-family: 'Cinzel', 'Pretendard', serif;
             font-weight: 500;
             font-size: 11px;
-            letter-spacing: 0.16em;
+            letter-spacing: 0.14em;
             text-align: center;
             outline: none;
             transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -186,6 +192,16 @@
             color: #dff4ff;
             border: 1px solid rgba(130, 215, 255, 0.45);
         }
+        #hud-overlay.theme-archbishop .hud-badge {
+            background: rgba(168, 16, 28, 0.78);
+            color: #ffe2e5;
+            border: 1px solid rgba(255, 82, 98, 0.55);
+        }
+        #hud-overlay.theme-carnage .hud-badge {
+            background: rgba(186, 136, 14, 0.65);
+            color: #fff6d2;
+            border: 1px solid rgba(255, 218, 88, 0.6);
+        }
 
         .hud-scan-line {
             position: relative;
@@ -209,6 +225,19 @@
             height: 14px;
             background: rgba(255, 255, 255, 0.7);
         }
+        #hud-overlay.theme-archbishop .hud-scan-line {
+            background: rgba(255, 92, 102, 0.45);
+        }
+        #hud-overlay.theme-archbishop .hud-scan-line::after {
+            background: rgba(255, 110, 120, 0.85);
+        }
+        #hud-overlay.theme-carnage .hud-scan-line {
+            background: rgba(255, 214, 70, 0.48);
+        }
+        #hud-overlay.theme-carnage .hud-scan-line::after {
+            background: rgba(255, 224, 102, 0.9);
+        }
+
         .hud-subtitle {
             margin-top: 6px;
             font-family: 'IBM Plex Mono', 'Pretendard', monospace;
@@ -241,6 +270,14 @@
         .hud-panel::after {
             right: 0;
             border-right: 1px solid rgba(255, 255, 255, 0.42);
+        }
+        #hud-overlay.theme-archbishop .hud-panel::before,
+        #hud-overlay.theme-archbishop .hud-panel::after {
+            border-color: rgba(255, 96, 110, 0.55);
+        }
+        #hud-overlay.theme-carnage .hud-panel::before,
+        #hud-overlay.theme-carnage .hud-panel::after {
+            border-color: rgba(255, 214, 76, 0.55);
         }
         #hud-overlay.active .hud-panel::before,
         #hud-overlay.active .hud-panel::after {
@@ -296,6 +333,14 @@
             background: rgba(45, 130, 185, 0.5);
             color: #e2f5ff;
         }
+        #hud-overlay.theme-archbishop .hud-val.highlight-badge {
+            background: rgba(176, 18, 34, 0.72);
+            color: #ffe5e7;
+        }
+        #hud-overlay.theme-carnage .hud-val.highlight-badge {
+            background: rgba(204, 152, 16, 0.55);
+            color: #fff8d6;
+        }
 
         .hud-notes-list {
             display: flex;
@@ -309,6 +354,7 @@
             letter-spacing: 0.02em;
             padding-left: 14px;
             position: relative;
+            word-break: break-all;
         }
         .hud-note-item::before {
             content: '';
@@ -318,6 +364,19 @@
             width: 5px;
             height: 1px;
             background: rgba(255, 255, 255, 0.65);
+        }
+        .hud-note-item.cipher-line {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11.5px;
+            letter-spacing: 0.08em;
+            color: rgba(255, 150, 158, 0.92);
+            margin-top: 4px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 95, 110, 0.28);
+        }
+        .hud-note-item.cipher-line::before {
+            top: 16px;
+            background: rgba(255, 110, 120, 0.8);
         }
 
         .hud-footer-meta {
@@ -383,7 +442,7 @@
             color: rgba(255, 255, 255, 0.34);
         }
 
-        #history-return-btn {
+        .topbar-return-btn {
             pointer-events: auto;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.32);
@@ -395,7 +454,7 @@
             cursor: pointer;
             transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
-        #history-return-btn:hover {
+        .topbar-return-btn:hover {
             background: rgba(255, 255, 255, 0.12);
             border-color: rgba(255, 255, 255, 0.85);
             color: #ffffff;
@@ -603,6 +662,170 @@
             }
         }
 
+        /* === [제3세계] UI === */
+        #thirdworld-ui {
+            position: fixed;
+            inset: 0;
+            z-index: 23;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.55s ease;
+        }
+        #thirdworld-ui.active {
+            opacity: 1;
+        }
+        #thirdworld-layer-label {
+            position: fixed;
+            bottom: 34px;
+            left: 50%;
+            transform: translate(-50%, 10px);
+            padding: 10px 26px;
+            background: rgba(14, 14, 18, 0.78);
+            border-top: 1px solid rgba(255, 255, 255, 0.42);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.42);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            opacity: 0;
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #thirdworld-layer-label.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        #thirdworld-layer-label.is-hell {
+            border-color: rgba(255, 214, 64, 0.55);
+        }
+        .tw-layer-index {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            color: rgba(255, 255, 255, 0.55);
+        }
+        .tw-layer-title {
+            font-family: 'Cinzel', 'Rajdhani', serif;
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: 0.18em;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+        #thirdworld-layer-label.is-hell .tw-layer-title {
+            color: #ffe270;
+            text-shadow: 0 0 14px rgba(255, 214, 64, 0.35);
+        }
+
+        /* === [don't do that paul.] 아날로그 CMD 터미널 === */
+        #paul-terminal {
+            position: fixed;
+            inset: 0;
+            z-index: 32;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 20px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        #paul-terminal.active {
+            pointer-events: auto;
+            opacity: 1;
+        }
+        #paul-terminal.done {
+            cursor: pointer;
+        }
+        .paul-crt-scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0, 0, 0, 0.0) 0px,
+                rgba(0, 0, 0, 0.0) 2px,
+                rgba(0, 0, 0, 0.28) 3px,
+                rgba(0, 0, 0, 0.28) 4px
+            );
+            opacity: 0.72;
+        }
+        .paul-cmd-box {
+            position: relative;
+            width: min(820px, 94vw);
+            max-height: 82vh;
+            background: rgba(6, 9, 7, 0.88);
+            border: 1px solid rgba(176, 214, 182, 0.34);
+            box-shadow: 0 0 36px rgba(0, 0, 0, 0.85), inset 0 0 28px rgba(120, 185, 130, 0.06);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+        }
+        .paul-cmd-header {
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(176, 214, 182, 0.24);
+            background: rgba(176, 214, 182, 0.07);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            color: rgba(198, 228, 202, 0.72);
+        }
+        .paul-cmd-body {
+            padding: 22px 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            font-size: 13.5px;
+            line-height: 1.72;
+            color: #d6ead8;
+            text-shadow: 0 0 6px rgba(155, 230, 165, 0.24);
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .paul-cmd-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .paul-cmd-line.speaker-p {
+            color: #f3e6c8;
+            text-shadow: 0 0 6px rgba(245, 215, 145, 0.26);
+        }
+        .paul-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            vertical-align: -2px;
+            margin-left: 3px;
+            background: currentColor;
+            animation: paulBlink 0.78s steps(1) infinite;
+        }
+        @keyframes paulBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        .paul-cmd-footer {
+            padding: 9px 16px;
+            border-top: 1px solid rgba(176, 214, 182, 0.18);
+            font-size: 10.5px;
+            letter-spacing: 0.16em;
+            color: rgba(185, 216, 190, 0.45);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #paul-terminal.done .paul-cmd-footer-status {
+            color: rgba(232, 248, 234, 0.92);
+            animation: paulStatusPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes paulStatusPulse {
+            0%, 100% { opacity: 0.55; }
+            50% { opacity: 1; }
+        }
+
         @media (max-width: 760px) {
             .history-topbar {
                 top: 18px;
@@ -617,6 +840,10 @@
                 font-size: 13px;
                 line-height: 1.76;
                 max-height: 36vh;
+            }
+            .paul-cmd-body {
+                padding: 16px;
+                font-size: 12.2px;
             }
         }
     </style>
@@ -645,7 +872,7 @@
                 <div class="history-sub-title">CHRONOLOGICAL FILAMENT // SELECT NODES LEFT TO RIGHT</div>
                 <div class="history-hint">원형 밀집 지점에 마우스를 올리거나 점을 클릭하여 기록을 확인하십시오</div>
             </div>
-            <button id="history-return-btn" type="button">RETURN [ESC]</button>
+            <button id="history-return-btn" class="topbar-return-btn" type="button">RETURN [ESC]</button>
         </div>
         <div id="history-markers"></div>
         <div id="history-panel">
@@ -665,6 +892,38 @@
         </div>
     </div>
 
+    <!-- [제3세계] 이벤트 UI -->
+    <div id="thirdworld-ui">
+        <div class="history-topbar">
+            <div class="history-title-wrap">
+                <div class="history-main-title">COSMOLOGY // THE THIRD WORLD</div>
+                <div class="history-sub-title">STRATIFIED PLANAR MESH // SELECT LAYER TO INSPECT</div>
+                <div class="history-hint">각 층을 클릭하여 계층을 확인하십시오</div>
+            </div>
+            <button id="thirdworld-return-btn" class="topbar-return-btn" type="button">RETURN [ESC]</button>
+        </div>
+        <div id="thirdworld-layer-label">
+            <span class="tw-layer-index" id="tw-layer-index">01</span>
+            <span class="tw-layer-title" id="tw-layer-title">HEAVEN</span>
+        </div>
+    </div>
+
+    <!-- [don't do that paul.] 아날로그 기록지 터미널 -->
+    <div id="paul-terminal">
+        <div class="paul-crt-scanlines"></div>
+        <div class="paul-cmd-box">
+            <div class="paul-cmd-header">
+                <span>C:\ARCHIVE\LOG\PAUL_TRANSCRIPT.CMD</span>
+                <span>ANALOG FEED // CH-04</span>
+            </div>
+            <div class="paul-cmd-body" id="paul-cmd-body"></div>
+            <div class="paul-cmd-footer">
+                <span class="paul-cmd-footer-status" id="paul-cmd-status">STREAMING RECORD...</span>
+                <span>ENC: ASCII / ANALOG</span>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import * as THREE from 'three';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -675,6 +934,10 @@
         const MAIN_BG_COLOR = new THREE.Vector3(28 / 255, 28 / 255, 28 / 255);
         const HOST_BLUE_COLOR = new THREE.Vector3(8 / 255, 52 / 255, 138 / 255);
         const HISTORY_BG_COLOR = new THREE.Vector3(19 / 255, 19 / 255, 22 / 255);
+        const ARCHBISHOP_BG_COLOR = new THREE.Vector3(26 / 255, 10 / 255, 12 / 255);
+        const THIRD_WORLD_BG_COLOR = new THREE.Vector3(16 / 255, 16 / 255, 18 / 255);
+        const PAUL_BG_COLOR = new THREE.Vector3(8 / 255, 11 / 255, 9 / 255);
+
         const currentBgVec = MAIN_BG_COLOR.clone();
         const ORB_CENTER_Y = 0.32;
         const CAMERA_DEFAULT_Z = 7.0;
@@ -792,8 +1055,66 @@
                 ],
                 footerLeft: 'AUTHORITY : PLAYER // RESET ACTIVE',
                 footerRight: 'CLICK SCREEN TO CLOSE'
+            },
+            archbishop: {
+                theme: 'theme-archbishop',
+                headerTitle: 'CONVERGENCE COMPLETE',
+                badge: 'CONGREGATION',
+                subtitle: 'CULT HIERARCHY // CRIMSON FLESH ASSIMILATION // SINGULARITY',
+                leftLabel: 'VESSEL PROFILE',
+                rightLabel: 'DOCTRINE & MUTATION LOG',
+                subRightLabel: 'BIO-MORPH // DIVINE ASCENSION',
+                fields: [
+                    { key: '이름', val: '대주교', highlight: true },
+                    { key: '성별', val: '-' },
+                    { key: '나이', val: '387' },
+                    { key: '분류', val: '인간(집합체)' },
+                    { key: '키 & 몸무게', val: '188cm / 99kg+' }
+                ],
+                notes: [
+                    '짖누른 핏빛 살점의 대주교.',
+                    '의식을 통해 인간을 흡수하여 제 덩치와 생명을 연장하고 있다. 그 영향으로 제 육체의 구조를 변형하거나 기관을 만들어내는 이능을 얻었다.',
+                    '굉장히 교만하며, 신성에 닿으리라는 욕망을 품고있다.',
+                    { text: 'ZG9uJ3QgZG8gdGhhdCBwYXVsLg==', isCipher: true }
+                ],
+                footerLeft: 'ASSIMILATION : UNSTABLE / HIGH HUBRIS',
+                footerRight: 'CLICK SCREEN TO CLOSE'
+            },
+            carnage: {
+                theme: 'theme-carnage',
+                headerTitle: 'SIN OF PRIDE',
+                badge: 'USURPER',
+                subtitle: 'STRATUM 03 // HELL // YELLOW PENTAGRAM RESONANCE',
+                leftLabel: 'DEMONIC PROFILE',
+                rightLabel: 'INFERNAL RECORD',
+                subRightLabel: 'THRONE OF PRIDE // WAR & VIOLENCE',
+                fields: [
+                    { key: '이름', val: '카니지', highlight: true },
+                    { key: '성별', val: '-' },
+                    { key: '나이', val: '1000+' },
+                    { key: '분류', val: '인간 > 악마' },
+                    { key: '키 & 몸무게', val: '220cm / 280kg' }
+                ],
+                notes: [
+                    '오만의 대죄를 짊어진 악마.',
+                    '본래 인간이었으나 생전에 직간접적으로 해한 생명의 수가 막대한 탓에 지옥에 떨어졌다.',
+                    '기존의 오만의 악마를 죽이며 오만의 자리를 찬탈했다.',
+                    '도덕보다는 원초적인 전쟁과 폭력을 숭상한다.'
+                ],
+                footerLeft: 'DOMAIN : HELL // SUPERBIA',
+                footerRight: 'CLICK SCREEN TO CLOSE'
             }
         };
+
+        // Paul 기록지 대화 로그
+        const PAUL_LOG_LINES = [
+            { speaker: 'c', text: '> c: Paul, what the hell have you been up to lately? Disappearing in the middle of the night without a word-' },
+            { speaker: 'c', text: '> c: Shit, for God’s sake, Paul, what the hell are you doing!' },
+            { speaker: 'c', text: '> c: How many people are there... fuck...' },
+            { speaker: 'p', text: '> p: My brother, I have received a revelation from 100 years in the future.' },
+            { speaker: 'c', text: '> c: Shut the hell up, you crazy murdering bastard!' },
+            { speaker: 'p', text: '> p: I don’t expect to be understood. Prophets are bound to be criticized, after all.' }
+        ];
 
         // 1. 기본 씬, 카메라, 렌더러 설정
         const scene = new THREE.Scene();
@@ -814,26 +1135,26 @@
 
         // 2. 독자적 애니메이션을 가지는 궤도(Rings)
         const orbitConfigs = [
-            { 
-                rx: 2.32, ry: 0.86, 
-                baseRot: new THREE.Euler(0.65, 0.35, 0.4), 
+            {
+                rx: 2.32, ry: 0.86,
+                baseRot: new THREE.Euler(0.65, 0.35, 0.4),
                 rotSpeed: new THREE.Vector3(0.16, -0.22, 0.11),
                 wobbleFreq: 0.7, wobbleAmp: 0.25,
-                speed: 1.35, phase: 0.0 
+                speed: 1.35, phase: 0.0
             },
-            { 
-                rx: 2.32, ry: 0.86, 
-                baseRot: new THREE.Euler(-0.55, 0.5, -0.7), 
+            {
+                rx: 2.32, ry: 0.86,
+                baseRot: new THREE.Euler(-0.55, 0.5, -0.7),
                 rotSpeed: new THREE.Vector3(-0.20, 0.14, -0.18),
                 wobbleFreq: 0.55, wobbleAmp: 0.3,
-                speed: -1.05, phase: 2.1 
+                speed: -1.05, phase: 2.1
             },
-            { 
-                rx: 2.22, ry: 0.96, 
-                baseRot: new THREE.Euler(0.25, -0.7, 1.1), 
+            {
+                rx: 2.22, ry: 0.96,
+                baseRot: new THREE.Euler(0.25, -0.7, 1.1),
                 rotSpeed: new THREE.Vector3(0.13, 0.26, -0.14),
                 wobbleFreq: 0.85, wobbleAmp: 0.22,
-                speed: 1.2, phase: 4.2 
+                speed: 1.2, phase: 4.2
             }
         ];
 
@@ -850,16 +1171,16 @@
             const points = curve.getPoints(128);
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             sharedRingGeos.push(geometry);
-            
+
             const group = new THREE.Group();
             group.rotation.copy(cfg.baseRot);
-            
+
             for (let i = 0; i < 3; i++) {
                 const line = new THREE.LineLoop(geometry, ringMaterial);
                 line.scale.setScalar(1 + (i - 1) * 0.007);
                 group.add(line);
             }
-            
+
             masterGroup.add(group);
             cfg.group = group;
         });
@@ -951,7 +1272,7 @@
 
                 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
                 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-                float snoise(vec3 v){ 
+                float snoise(vec3 v){
                     const vec2 C = vec2(1.0/6.0, 1.0/3.0);
                     const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
                     vec3 i  = floor(v + dot(v, C.yyy));
@@ -963,10 +1284,10 @@
                     vec3 x1 = x0 - i1 + 1.0 * C.xxx;
                     vec3 x2 = x0 - i2 + 2.0 * C.xxx;
                     vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
-                    i = mod(i, 289.0); 
-                    vec4 p = permute(permute(permute( 
+                    i = mod(i, 289.0);
+                    vec4 p = permute(permute(permute(
                                 i.z + vec4(0.0, i1.z, i2.z, 1.0))
-                              + i.y + vec4(0.0, i1.y, i2.y, 1.0)) 
+                              + i.y + vec4(0.0, i1.y, i2.y, 1.0))
                               + i.x + vec4(0.0, i1.x, i2.x, 1.0));
                     float n_ = 1.0/7.0;
                     vec3 ns = n_ * D.wyz - D.xzx;
@@ -1000,7 +1321,7 @@
 
                     float n1 = snoise(dir * 1.85 + vec3(t, -t * 0.7, layerOffset));
                     float n2 = snoise(dir * 3.6 - vec3(t * 0.8, t * 0.5, -layerOffset)) * 0.45;
-                    
+
                     float ridge = 1.0 - abs(n1);
                     ridgeVal = pow(ridge, 2.2);
 
@@ -1215,6 +1536,14 @@
         const nodeLines = new THREE.LineSegments(linesGeo, linesMat);
         masterGroup.add(nodeLines);
 
+        function setOrbOpacity(alpha) {
+            const a = THREE.MathUtils.clamp(alpha, 0.0, 1.0);
+            coreShellMat.uniforms.uIntroAlpha.value = a;
+            ringMaterial.opacity = 0.26 * a;
+            outerMat.uniforms.uOpacity.value = a;
+            linesMat.opacity = 0.78 * a;
+        }
+
         // 4-2. 다레카 시퀀스용 복제 오브 그리드
         const darekaGroup = new THREE.Group();
         let darekaClones = [];
@@ -1416,7 +1745,7 @@
         }
 
         const histPositions = new Float32Array(HIST_PARTICLE_COUNT * 3);
-        const histBaseData = new Float32Array(HIST_PARTICLE_COUNT * 3); // x: normX, y: verticalOffset, z: depthOffset
+        const histBaseData = new Float32Array(HIST_PARTICLE_COUNT * 3);
         const histSeeds = new Float32Array(HIST_PARTICLE_COUNT * 3);
         const histScatter = new Float32Array(HIST_PARTICLE_COUNT * 3);
         const histSizeWeight = new Float32Array(HIST_PARTICLE_COUNT);
@@ -1426,7 +1755,6 @@
             let vSpread;
             let sizeW;
 
-            // 앞쪽 42%: 전체 가로선 필라멘트를 구성 / 나머지 58%: 5개 지점에 원형 밀집도 형성
             if (i < HIST_PARTICLE_COUNT * 0.42) {
                 normX = (Math.random() * 2.16 - 1.08);
                 vSpread = gaussianRandom() * 0.036;
@@ -1434,7 +1762,6 @@
             } else {
                 const nodeIdx = i % 5;
                 const centerNX = HISTORY_NODE_NORM_X[nodeIdx];
-                // 중심부에 원형 밀집도가 뚜렷하게 높고 양옆 선으로 부드럽게 녹아듦
                 const clusterRadius = Math.abs(gaussianRandom()) * 0.048;
                 const ang = Math.random() * Math.PI * 2;
                 normX = centerNX + Math.cos(ang) * clusterRadius * 1.15;
@@ -1507,7 +1834,6 @@
 
                 void main() {
                     float t = uTime;
-                    // 가로선 위에서의 동적 유동 (호흡 및 미세 흐름)
                     float flowShift = sin(t * (0.45 + aSeed.x * 0.4) + aSeed.y * 6.2831) * 0.014;
                     float nx = aBase.x + flowShift;
 
@@ -1520,7 +1846,6 @@
                         aBase.z + cos(t * 0.9 + aSeed.x * 6.2831) * 0.018
                     );
 
-                    // 5개 지점의 기본 밀집 밝기 및 원형 확장
                     float rimBoost = 0.0;
                     float clusterProximity = 0.0;
                     float inflR = 0.56 * uCircleScale;
@@ -1541,7 +1866,6 @@
                             float fallbackAng = aSeed.z * 6.2831853 + t * (0.4 + aSeed.x * 0.35);
                             vec2 radDir = (d > 0.012) ? normalize(diff) : vec2(cos(fallbackAng), sin(fallbackAng));
 
-                            // 열릴 때 미세한 회전 와류
                             float swirl = openAmt * (1.0 - normD) * 0.52 * (aSeed.y - 0.3);
                             float cs = cos(swirl);
                             float sn = sin(swirl);
@@ -1551,7 +1875,6 @@
                             float pushedR = mix(ringR, inflR, pow(normD, 1.38));
                             vec2 targetXY = center + radDir * pushedR;
 
-                            // 중심부 입자들은 완전히 링 바깥으로 밀려나 내부에 깨끗한 원형 공간 확보
                             float pushWeight = openAmt * smoothstep(1.0, 0.72, normD * 0.95);
                             linePos.xy = mix(linePos.xy, targetXY, clamp(pushWeight, 0.0, 1.0));
 
@@ -1560,7 +1883,6 @@
                         }
                     }
 
-                    // 수렴 컷신 보간
                     float pDelay = aSeed.x * 0.26;
                     float conv = clamp((uConverge - pDelay) / 0.74, 0.0, 1.0);
                     float convEase = 1.0 - pow(1.0 - conv, 3.0);
@@ -1602,7 +1924,6 @@
         const historyLinePoints = new THREE.Points(historyLineGeo, historyLineMat);
         historyGroup.add(historyLinePoints);
 
-        // 5개 원형 확장 내부의 흰 점(코어 닷 + 외곽 조준 링 + 글로우)
         const historyCoreNodes = [];
         const coreDotGeo = new THREE.CircleGeometry(0.048, 32);
         const coreRingGeo = new THREE.RingGeometry(0.115, 0.123, 48);
@@ -1655,7 +1976,6 @@
             });
         }
 
-        // 미세한 우주 배경 부유 먼지 (History 전용 깊이감 연출)
         const DUST_COUNT = 160;
         const dustPositions = new Float32Array(DUST_COUNT * 3);
         for (let i = 0; i < DUST_COUNT; i++) {
@@ -1675,6 +1995,345 @@
         });
         const historyDust = new THREE.Points(dustGeo, dustMat);
         historyGroup.add(historyDust);
+
+        // 5-3. [대주교 / ARCHBISHOP] 대칭형 원형 만다라 + 곡선 수렴 & 떨림 시스템
+        const archbishopGroup = new THREE.Group();
+        archbishopGroup.position.set(0, ORB_CENTER_Y, 0);
+        const archbishopRings = [];
+        const ARCH_RING_SEGMENTS = 96;
+
+        // 레퍼런스 이미지(1번)의 수직 대칭 중첩 원 배치
+        const archLayoutCoords = [
+            // 최상단 크라운
+            [0.0, 1.72, 0.72, 0.0],
+            [-0.42, 1.62, 0.68, 0.12],
+            [0.42, 1.62, 0.68, -0.12],
+            // 상부 좌우 전개
+            [-0.92, 1.24, 0.68, 0.16],
+            [0.92, 1.24, 0.68, -0.16],
+            [-0.38, 1.08, 0.66, -0.08],
+            [0.38, 1.08, 0.66, 0.08],
+            // 중단 좌우 궤도
+            [-1.08, 0.56, 0.70, 0.18],
+            [1.08, 0.56, 0.70, -0.18],
+            [-0.50, 0.34, 0.68, -0.12],
+            [0.50, 0.34, 0.68, 0.12],
+            // 중앙 핵심 이중 링
+            [0.0, 0.02, 0.74, 0.06],
+            [0.0, -0.02, 0.68, -0.06],
+            // 중하단 좌우 전개
+            [-0.92, -0.34, 0.70, -0.14],
+            [0.92, -0.34, 0.70, 0.14],
+            [-0.52, -0.62, 0.68, 0.1],
+            [0.52, -0.62, 0.68, -0.1],
+            // 하부 좌우 전개
+            [-1.04, -1.04, 0.68, -0.16],
+            [1.04, -1.04, 0.68, 0.16],
+            [-0.42, -1.32, 0.68, 0.1],
+            [0.42, -1.32, 0.68, -0.1],
+            // 최하단
+            [-0.26, -1.72, 0.66, 0.08],
+            [0.26, -1.72, 0.66, -0.08]
+        ];
+
+        const archUnitCirclePts = [];
+        for (let i = 0; i < ARCH_RING_SEGMENTS; i++) {
+            const th = (i / ARCH_RING_SEGMENTS) * Math.PI * 2;
+            archUnitCirclePts.push(new THREE.Vector3(Math.cos(th), Math.sin(th), 0));
+        }
+        const archUnitRingGeo = new THREE.BufferGeometry().setFromPoints(archUnitCirclePts);
+        const archDotGeo = new THREE.CircleGeometry(0.036, 20);
+
+        archLayoutCoords.forEach((cfg, idx) => {
+            const [sx, sy, radius, sz] = cfg;
+            const ringContainer = new THREE.Group();
+
+            const lineMat = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const loop = new THREE.LineLoop(archUnitRingGeo, lineMat);
+            ringContainer.add(loop);
+
+            // 원 둘레 위의 빛나는 점(노드) 1~2개
+            const dots = [];
+            const dotCount = (idx % 3 === 0) ? 2 : 1;
+            for (let d = 0; d < dotCount; d++) {
+                const dMat = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.0,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                const dMesh = new THREE.Mesh(archDotGeo, dMat);
+                ringContainer.add(dMesh);
+                dots.push({
+                    mesh: dMesh,
+                    mat: dMat,
+                    angle: (idx * 1.15 + d * Math.PI * 0.85) % (Math.PI * 2),
+                    speed: (idx % 2 === 0 ? 1 : -1) * (0.65 + (idx % 5) * 0.14)
+                });
+            }
+
+            // 각 원이 중심으로 향하는 고유 곡선(Quadratic Bezier) 제어점 계산
+            const startVec = new THREE.Vector3(sx, sy, sz);
+            const perp = new THREE.Vector3(-sy, sx, (idx % 2 === 0 ? 0.55 : -0.55));
+            if (perp.length() < 0.15) perp.set(1.1, 0.35, 0.45);
+            perp.normalize().multiplyScalar(0.95 + (idx % 4) * 0.28);
+            const ctrlVec = startVec.clone().multiplyScalar(0.5).add(perp);
+
+            archbishopGroup.add(ringContainer);
+            archbishopRings.push({
+                container: ringContainer,
+                loop,
+                lineMat,
+                dots,
+                startVec,
+                ctrlVec,
+                baseRadius: radius,
+                tiltX: (idx % 3 - 1) * 0.12,
+                tiltY: ((idx + 1) % 3 - 1) * 0.12,
+                seed: idx * 3.71 + 0.5
+            });
+        });
+
+        // 한 점에 모였을 때 빛나는 중앙 특이점 코어
+        const archCenterCoreMat = new THREE.SpriteMaterial({
+            map: glowTex,
+            color: 0xffd6da,
+            transparent: true,
+            opacity: 0.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const archCenterCore = new THREE.Sprite(archCenterCoreMat);
+        archCenterCore.scale.set(0.01, 0.01, 0.01);
+        archbishopGroup.add(archCenterCore);
+
+        // 5-4. [제3세계 / THIRD WORLD] 층층이 쌓인 3D 메쉬 + 6개의 오망성 시스템
+        const thirdWorldGroup = new THREE.Group();
+        thirdWorldGroup.position.set(0, 0.12, 0);
+        // 레퍼런스 2번 이미지와 동일한 아이소메트릭/사선 투시 각도
+        const twTiltGroup = new THREE.Group();
+        twTiltGroup.rotation.set(0.56, Math.PI * 0.25, 0.0);
+        thirdWorldGroup.add(twTiltGroup);
+
+        const TW_LAYER_NAMES = ['HEAVEN', 'Mortal Realms', 'HELL'];
+        const TW_LAYER_Y = [1.28, 0.0, -1.28];
+        const thirdWorldLayers = [];
+        let hoveredTwLayer = -1;
+        let selectedTwLayer = -1;
+
+        function createDeformedLayerWireframe(size, divisions, layerIdx) {
+            const verts = [];
+            const half = size * 0.5;
+            const step = size / divisions;
+
+            // 중앙에 레퍼런스 2번 이미지처럼 깔때기/웜홀 형태로 꺾이는 변형 함수
+            const deformPoint = (x, z) => {
+                const r = Math.hypot(x, z);
+                const pinch = Math.exp(-(r * r) / 0.26);
+                const swirlAngle = pinch * (0.85 + layerIdx * 0.22);
+                const cs = Math.cos(swirlAngle);
+                const sn = Math.sin(swirlAngle);
+                const rx = x * cs - z * sn;
+                const rz = x * sn + z * cs;
+                const shrink = 1.0 - pinch * 0.52;
+                const yDip = -pinch * (layerIdx === 0 ? 0.58 : (layerIdx === 1 ? 0.52 : 0.42))
+                             + Math.sin(x * 1.8 + layerIdx) * 0.025;
+                return new THREE.Vector3(rx * shrink, yDip, rz * shrink);
+            };
+
+            for (let i = 0; i <= divisions; i++) {
+                const c = -half + i * step;
+                // X방향 그리드 선분
+                for (let j = 0; j < divisions; j++) {
+                    const p1 = deformPoint(-half + j * step, c);
+                    const p2 = deformPoint(-half + (j + 1) * step, c);
+                    verts.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+                }
+                // Z방향 그리드 선분
+                for (let j = 0; j < divisions; j++) {
+                    const p1 = deformPoint(c, -half + j * step);
+                    const p2 = deformPoint(c, -half + (j + 1) * step);
+                    verts.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+            return geo;
+        }
+
+        TW_LAYER_Y.forEach((ly, idx) => {
+            const layerHolder = new THREE.Group();
+            layerHolder.position.y = ly;
+
+            const wireGeo = createDeformedLayerWireframe(2.85, 22, idx);
+            const wireMat = new THREE.LineBasicMaterial({
+                color: 0xe6ecf5,
+                transparent: true,
+                opacity: 0.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const wireLines = new THREE.LineSegments(wireGeo, wireMat);
+            layerHolder.add(wireLines);
+
+            // 클릭 및 호버 판정용 투명 평면 콜라이더
+            const hitGeo = new THREE.PlaneGeometry(2.9, 2.9);
+            hitGeo.rotateX(-Math.PI / 2);
+            const hitMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+            const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+            hitMesh.userData.twLayerIdx = idx;
+            layerHolder.add(hitMesh);
+
+            twTiltGroup.add(layerHolder);
+            thirdWorldLayers.push({
+                idx,
+                holder: layerHolder,
+                wireMat,
+                hitMesh,
+                baseY: ly,
+                highlightAmt: 0
+            });
+        });
+
+        // 층과 층을 중앙 관통선으로 잇는 와이어프레임 관(Conduit) - 레퍼런스 2번 이미지의 중앙 곡선 구조
+        const twConduitVerts = [];
+        const conduitSpokes = 14;
+        const conduitSteps = 32;
+        for (let s = 0; s < conduitSpokes; s++) {
+            const baseAng = (s / conduitSpokes) * Math.PI * 2;
+            for (let k = 0; k < conduitSteps; k++) {
+                const t1 = k / conduitSteps;
+                const t2 = (k + 1) / conduitSteps;
+                const evalConduit = (t) => {
+                    const y = THREE.MathUtils.lerp(1.38, -1.62, t);
+                    const waveR = 0.24 + 0.14 * Math.sin(t * Math.PI * 3.0);
+                    const ang = baseAng + t * 1.45;
+                    return new THREE.Vector3(Math.cos(ang) * waveR, y, Math.sin(ang) * waveR);
+                };
+                const a = evalConduit(t1);
+                const b = evalConduit(t2);
+                twConduitVerts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+            }
+        }
+        const twConduitGeo = new THREE.BufferGeometry();
+        twConduitGeo.setAttribute('position', new THREE.Float32BufferAttribute(twConduitVerts, 3));
+        const twConduitMat = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const twConduitLines = new THREE.LineSegments(twConduitGeo, twConduitMat);
+        twTiltGroup.add(twConduitLines);
+
+        // HELL 클릭 시 동적으로 출현하는 6개의 오망성 (2번 인덱스가 노란색 오망성)
+        const pentagramGroup = new THREE.Group();
+        const PENTAGRAM_COLORS = [
+            0xd9383a, // Crimson
+            0x9b5de5, // Violet
+            0xffe135, // YELLOW (Target -> Carnage)
+            0x5eead4, // Pale Cyan
+            0xd4dce6, // Ash White
+            0xef6c2f  // Ember Orange
+        ];
+        const TARGET_YELLOW_PENTAGRAM_IDX = 2;
+        const pentagrams = [];
+        let pentagramRevealActive = false;
+        let pentagramRevealStart = 0;
+        let hoveredPentagram = -1;
+
+        function createPentagramGeometry(radius) {
+            const circlePts = [];
+            for (let i = 0; i <= 64; i++) {
+                const th = (i / 64) * Math.PI * 2;
+                circlePts.push(new THREE.Vector3(Math.cos(th) * radius, Math.sin(th) * radius, 0));
+            }
+            const circleGeo = new THREE.BufferGeometry().setFromPoints(circlePts);
+
+            // 5각 별 꼭짓점 연결 순서: 0 -> 2 -> 4 -> 1 -> 3 -> 0 (역오망성 또는 정오망성)
+            const starVerts = [];
+            const order = [0, 2, 4, 1, 3, 0];
+            for (let i = 0; i < order.length; i++) {
+                const idx = order[i];
+                const ang = (idx / 5) * Math.PI * 2 - Math.PI / 2; // 역오망성(HELL 상징)
+                starVerts.push(new THREE.Vector3(Math.cos(ang) * radius * 0.96, Math.sin(ang) * radius * 0.96, 0));
+            }
+            const starGeo = new THREE.BufferGeometry().setFromPoints(starVerts);
+            return { circleGeo, starGeo };
+        }
+
+        const sharedPentGeo = createPentagramGeometry(0.42);
+        const sharedPentHitGeo = new THREE.CircleGeometry(0.48, 24);
+
+        for (let i = 0; i < 6; i++) {
+            const pContainer = new THREE.Group();
+            const colorHex = PENTAGRAM_COLORS[i];
+            const isYellow = (i === TARGET_YELLOW_PENTAGRAM_IDX);
+
+            const pMat = new THREE.LineBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const circleLine = new THREE.Line(sharedPentGeo.circleGeo, pMat);
+            const starLine = new THREE.Line(sharedPentGeo.starGeo, pMat);
+
+            // 중앙/외곽 글로우 스프라이트
+            const haloMat = new THREE.SpriteMaterial({
+                map: glowTex,
+                color: colorHex,
+                transparent: true,
+                opacity: 0.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const halo = new THREE.Sprite(haloMat);
+            halo.scale.set(isYellow ? 1.15 : 0.88, isYellow ? 1.15 : 0.88, 1);
+
+            const hitMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+            const hitMesh = new THREE.Mesh(sharedPentHitGeo, hitMat);
+            hitMesh.userData.pentagramIdx = i;
+
+            pContainer.add(halo);
+            pContainer.add(circleLine);
+            pContainer.add(starLine);
+            pContainer.add(hitMesh);
+            pentagramGroup.add(pContainer);
+
+            // 아크형 좌우 6개 대칭 배치 (화면에 겹치지 않게 고르게 분포)
+            const ang = ((i - 2.5) / 5.0) * Math.PI * 0.82;
+            const arcRadiusX = 2.25;
+            const arcRadiusY = 0.72;
+            const targetPos = new THREE.Vector3(
+                Math.sin(ang) * arcRadiusX,
+                -0.68 - Math.cos(ang) * arcRadiusY * 0.48,
+                1.55 + Math.cos(ang) * 0.35
+            );
+
+            pentagrams.push({
+                idx: i,
+                isYellow,
+                container: pContainer,
+                mat: pMat,
+                haloMat,
+                hitMesh,
+                startPos: new THREE.Vector3(0, -1.35, 0.2),
+                targetPos,
+                shakeOffset: 0,
+                hoverScale: 1.0
+            });
+        }
 
         // 6. 호스트 푸른 모자이크 2D 캔버스
         const mosaicCanvas = document.getElementById('mosaic-canvas');
@@ -1730,7 +2389,7 @@
             }
         }
 
-        // 7. 후처리(Post-Processing)
+        // 7. 후처리(Post-Processing) — 붉은 글리치 & 아날로그 CRT 셰이더 확장
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
 
@@ -1741,7 +2400,9 @@
                 uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
                 uBgColor: { value: MAIN_BG_COLOR.clone() },
                 uAnaglyph: { value: 0.0 },
-                uFlashWhite: { value: 0.0 }
+                uFlashWhite: { value: 0.0 },
+                uRedGlitch: { value: 0.0 },
+                uAnalog: { value: 0.0 }
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -1757,28 +2418,63 @@
                 uniform vec3 uBgColor;
                 uniform float uAnaglyph;
                 uniform float uFlashWhite;
+                uniform float uRedGlitch;
+                uniform float uAnalog;
                 varying vec2 vUv;
 
+                float hash12(vec2 p) {
+                    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                    p3 += dot(p3, p3.yzx + 33.33);
+                    return fract((p3.x + p3.y) * p3.z);
+                }
+
                 void main() {
-                    vec2 center = vUv - 0.5;
+                    vec2 uv = vUv;
+
+                    // 아날로그 CRT 곡률 워프
+                    if (uAnalog > 0.001) {
+                        vec2 centered = uv * 2.0 - 1.0;
+                        float r2 = dot(centered, centered);
+                        centered *= 1.0 + uAnalog * 0.065 * r2;
+                        uv = centered * 0.5 + 0.5;
+                    }
+
+                    // 붉은 글리치 슬라이스 왜곡 (대주교 시퀀스)
+                    float glitchBurst = 0.0;
+                    if (uRedGlitch > 0.001) {
+                        float bandY = floor(uv.y * 42.0);
+                        float tStep = floor(uTime * 28.0);
+                        float rnd = hash12(vec2(bandY, tStep));
+                        if (rnd > 1.0 - uRedGlitch * 0.52) {
+                            float shift = (hash12(vec2(tStep, bandY)) - 0.5) * 0.14 * uRedGlitch;
+                            uv.x += shift;
+                            glitchBurst = 1.0;
+                        }
+                        // 미세 수평 지터
+                        float micro = (hash12(vec2(floor(uv.y * 190.0), floor(uTime * 60.0))) - 0.5) * 0.015 * uRedGlitch;
+                        uv.x += micro;
+                    }
+
+                    vec2 center = uv - 0.5;
                     float dist = length(center);
 
                     vec2 dir = normalize(center + 0.0001);
                     vec2 slantDir = normalize(dir + vec2(0.6, -0.4));
-                    
+
                     float aberrationAmount = (0.0008 + pow(dist, 1.8) * 0.0055);
                     vec2 anaglyphShift = vec2(uAnaglyph * 0.017, 0.0);
+                    vec2 redShift = vec2(uRedGlitch * 0.014 * (0.5 + glitchBurst), 0.0);
 
-                    vec2 offsetR = slantDir * aberrationAmount * 1.1 - anaglyphShift;
+                    vec2 offsetR = slantDir * aberrationAmount * 1.1 - anaglyphShift + redShift;
                     vec2 offsetG = slantDir * aberrationAmount * 0.1 + anaglyphShift * 0.9;
-                    vec2 offsetB = -slantDir * aberrationAmount * 1.1 + anaglyphShift;
+                    vec2 offsetB = -slantDir * aberrationAmount * 1.1 + anaglyphShift - redShift * 0.7;
 
-                    float r = texture2D(tDiffuse, vUv + offsetR).r;
-                    float g = texture2D(tDiffuse, vUv + offsetG).g;
-                    float b = texture2D(tDiffuse, vUv + offsetB).b;
+                    float r = texture2D(tDiffuse, uv + offsetR).r;
+                    float g = texture2D(tDiffuse, uv + offsetG).g;
+                    float b = texture2D(tDiffuse, uv + offsetB).b;
 
                     vec3 finalColor = vec3(r, g, b);
-                    
+
                     float edge = abs(r - b) + abs(r - g);
                     finalColor += vec3(r * 0.25, g * 0.2, b * 0.32) * smoothstep(0.12, 0.65, edge) * 0.5;
 
@@ -1792,9 +2488,30 @@
                     finalColor = pow(finalColor, vec3(1.02)) * 1.1;
 
                     vec3 composited = clamp(uBgColor + finalColor, 0.0, 1.0);
+
+                    // 붉은 글리치 색감 & 스캔라인 강조
+                    if (uRedGlitch > 0.001) {
+                        float scan = 0.5 + 0.5 * sin(uv.y * uResolution.y * 1.1 + uTime * 22.0);
+                        float redNoise = hash12(uv * 240.0 + uTime * 19.0);
+                        float vignette = smoothstep(0.18, 0.95, dist);
+                        vec3 crimsonTint = vec3(0.75, 0.04, 0.07);
+                        composited += crimsonTint * uRedGlitch * (0.14 + glitchBurst * 0.28 + vignette * 0.22);
+                        composited.r += uRedGlitch * (redNoise * 0.14 + scan * 0.06);
+                        composited.gb *= 1.0 - uRedGlitch * (0.28 + glitchBurst * 0.35);
+                    }
+
+                    // 아날로그 CRT 노이즈, 주사선, 플리커, 비네팅 (don't do that paul.)
+                    if (uAnalog > 0.001) {
+                        float scanline = 0.88 + 0.12 * sin(uv.y * uResolution.y * 1.55);
+                        float grain = (hash12(uv * uResolution * 0.5 + fract(uTime * 17.3) * 100.0) - 0.5) * 0.085 * uAnalog;
+                        float flicker = 1.0 + sin(uTime * 37.0) * 0.018 * uAnalog;
+                        float crtVig = 1.0 - smoothstep(0.35, 0.92, dist) * 0.62 * uAnalog;
+                        composited = composited * mix(1.0, scanline, uAnalog) * flicker * crtVig + vec3(grain * 0.7, grain, grain * 0.75);
+                    }
+
                     composited = mix(composited, vec3(1.0), clamp(uFlashWhite, 0.0, 1.0));
 
-                    gl_FragColor = vec4(composited, 1.0);
+                    gl_FragColor = vec4(clamp(composited, 0.0, 1.0), 1.0);
                 }
             `
         };
@@ -1883,9 +2600,11 @@
                         <div class="hud-panel">
                             <div class="hud-section-label" data-scramble>특이사항 // SPECIAL NOTES</div>
                             <div class="hud-notes-list">
-                                ${data.notes.map(note => `
-                                    <div class="hud-note-item" data-scramble>${note}</div>
-                                `).join('')}
+                                ${data.notes.map(note => {
+                                    const text = typeof note === 'string' ? note : note.text;
+                                    const cls = (typeof note === 'object' && note.isCipher) ? 'hud-note-item cipher-line' : 'hud-note-item';
+                                    return `<div class="${cls}" data-scramble>${text}</div>`;
+                                }).join('')}
                             </div>
                         </div>
 
@@ -2009,6 +2728,127 @@
         historyClosePanelBtn.addEventListener('click', closeHistoryTextPanel);
         historyReturnBtn.addEventListener('click', () => exitHistorySequence());
 
+        // 8-3. [제3세계] UI 컨트롤
+        const thirdWorldUI = document.getElementById('thirdworld-ui');
+        const thirdWorldReturnBtn = document.getElementById('thirdworld-return-btn');
+        const twLayerLabel = document.getElementById('thirdworld-layer-label');
+        const twLayerIndexEl = document.getElementById('tw-layer-index');
+        const twLayerTitleEl = document.getElementById('tw-layer-title');
+
+        ['pointerdown', 'mousedown', 'click'].forEach(evt => {
+            thirdWorldReturnBtn.addEventListener(evt, (e) => e.stopPropagation());
+        });
+        thirdWorldReturnBtn.addEventListener('click', () => exitThirdWorldToNormal());
+
+        function selectThirdWorldLayer(idx) {
+            selectedTwLayer = idx;
+            twLayerIndexEl.textContent = `0${idx + 1}`;
+            twLayerTitleEl.textContent = TW_LAYER_NAMES[idx];
+            twLayerLabel.classList.toggle('is-hell', idx === 2);
+            twLayerLabel.classList.add('visible');
+
+            // 1(HEAVEN), 2(Mortal Realms)은 제목 외 내용 생성 X
+            // 3(HELL) 클릭 시 동적 애니메이션으로 6개의 오망성 출현
+            if (idx === 2 && !pentagramRevealActive) {
+                pentagramRevealActive = true;
+                pentagramRevealStart = clock.getElapsedTime();
+                thirdWorldGroup.add(pentagramGroup);
+                pentagrams.forEach(p => {
+                    p.container.position.copy(p.startPos);
+                    p.container.scale.setScalar(0.01);
+                    p.mat.opacity = 0;
+                    p.haloMat.opacity = 0;
+                });
+            }
+        }
+
+        // 8-4. [don't do that paul.] CMD 타이핑 엔진
+        const paulTerminal = document.getElementById('paul-terminal');
+        const paulCmdBody = document.getElementById('paul-cmd-body');
+        const paulCmdStatus = document.getElementById('paul-cmd-status');
+        let paulTypingDone = false;
+        let paulTypingTimer = null;
+
+        function clearPaulTyping() {
+            if (paulTypingTimer) {
+                clearTimeout(paulTypingTimer);
+                paulTypingTimer = null;
+            }
+        }
+
+        function startPaulTypewriter() {
+            clearPaulTyping();
+            paulTypingDone = false;
+            paulCmdBody.innerHTML = '';
+            paulCmdStatus.textContent = 'STREAMING RECORD...';
+            paulTerminal.classList.remove('done');
+            paulTerminal.classList.add('active');
+
+            let lineIdx = 0;
+            let charIdx = 0;
+            let currentEl = null;
+            let cursorEl = document.createElement('span');
+            cursorEl.className = 'paul-cursor';
+
+            function step() {
+                if (seqState !== 'PAUL_ACTIVE') return;
+
+                if (lineIdx >= PAUL_LOG_LINES.length) {
+                    paulTypingDone = true;
+                    paulCmdStatus.textContent = 'EOF // CLICK SCREEN TO RETURN';
+                    paulTerminal.classList.add('done');
+                    return;
+                }
+
+                const entry = PAUL_LOG_LINES[lineIdx];
+                if (charIdx === 0) {
+                    currentEl = document.createElement('div');
+                    currentEl.className = `paul-cmd-line speaker-${entry.speaker}`;
+                    paulCmdBody.appendChild(currentEl);
+                }
+
+                charIdx++;
+                currentEl.textContent = entry.text.slice(0, charIdx);
+                currentEl.appendChild(cursorEl);
+                paulCmdBody.scrollTop = paulCmdBody.scrollHeight;
+
+                if (charIdx < entry.text.length) {
+                    const ch = entry.text[charIdx - 1];
+                    const delay = (ch === '.' || ch === '!' || ch === '-' || ch === ',') ? 68 : 22;
+                    paulTypingTimer = setTimeout(step, delay);
+                } else {
+                    lineIdx++;
+                    charIdx = 0;
+                    paulTypingTimer = setTimeout(step, 540);
+                }
+            }
+
+            paulTypingTimer = setTimeout(step, 360);
+        }
+
+        function closePaulSequence() {
+            if (seqState !== 'PAUL_ACTIVE' || !paulTypingDone) return;
+            clearPaulTyping();
+            paulTerminal.classList.remove('active', 'done');
+            document.body.classList.remove('paul-mode');
+
+            camera.position.set(0, 0, CAMERA_DEFAULT_Z);
+            scene.add(masterGroup);
+            masterGroup.position.set(0, ORB_CENTER_Y, 0);
+            masterGroup.scale.setScalar(0.001);
+            setOrbOpacity(1.0);
+            isOrbActive = true;
+
+            seqState = 'PAUL_RESTORING';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        paulTerminal.addEventListener('click', () => {
+            if (seqState === 'PAUL_ACTIVE' && paulTypingDone) {
+                closePaulSequence();
+            }
+        });
+
         window.addEventListener('keydown', (e) => {
             if (seqState === 'HISTORY_ACTIVE') {
                 if (e.key === 'Escape') {
@@ -2020,10 +2860,12 @@
                     const prevIdx = selectedHistoryNode <= 0 ? 0 : selectedHistoryNode - 1;
                     selectHistoryNode(prevIdx);
                 }
+            } else if (seqState === 'THIRD_WORLD_ACTIVE' && e.key === 'Escape') {
+                exitThirdWorldToNormal();
             }
         });
 
-        // 9. 상태 머신 및 인터랙션 (최초 진입 시 INTRO_CUTSCENE 실행)
+        // 9. 상태 머신 및 인터랙션
         let seqState = 'INTRO_CUTSCENE';
         let seqStartTime = 0;
         let isOrbActive = true;
@@ -2095,9 +2937,55 @@
             seqStartTime = clock.getElapsedTime();
         }
 
-        function handleCommandValue(raw) {
+        function triggerArchbishopSequence() {
+            if (seqState !== 'NORMAL') return;
+            activeCharKey = 'archbishop';
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+            seqState = 'ARCHBISHOP_ORB_EXIT';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function triggerThirdWorldSequence() {
+            if (seqState !== 'NORMAL') return;
+            activeCharKey = 'carnage';
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+            document.body.classList.add('world-mode');
+            seqState = 'THIRD_WORLD_ORB_EXIT';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function exitThirdWorldToNormal() {
+            if (seqState !== 'THIRD_WORLD_ACTIVE' && seqState !== 'THIRD_WORLD_ENTER') return;
+            thirdWorldUI.classList.remove('active');
+            twLayerLabel.classList.remove('visible', 'is-hell');
+            document.body.classList.remove('world-mode', 'world-hover');
+
+            hoveredTwLayer = -1;
+            selectedTwLayer = -1;
+            hoveredPentagram = -1;
+            pentagramRevealActive = false;
+            thirdWorldGroup.remove(pentagramGroup);
+
+            seqState = 'THIRD_WORLD_EXIT_NORMAL';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function triggerPaulSequence() {
+            if (seqState !== 'NORMAL') return;
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+            document.body.classList.add('paul-mode');
+            seqState = 'PAUL_ORB_EXIT';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function handleCommandValue(raw, isEnter = false) {
             const rawTrim = raw.trim();
             const val = rawTrim.toUpperCase();
+            const normalizedPaul = rawTrim.replace(/’/g, "'").toLowerCase();
+
             if (val === 'GOD') {
                 triggerGodSequence();
             } else if (val === 'WHO' || rawTrim === '누구지') {
@@ -2108,12 +2996,18 @@
                 triggerDarekaSequence();
             } else if (val === 'HISTORY' || rawTrim === '역사') {
                 triggerHistorySequence();
+            } else if (rawTrim === '대주교' || val === 'ARCHBISHOP') {
+                triggerArchbishopSequence();
+            } else if (rawTrim === '제3세계' || val === 'THIRD WORLD' || val === '3RD WORLD') {
+                triggerThirdWorldSequence();
+            } else if (normalizedPaul === "don't do that paul." || (isEnter && normalizedPaul === "don't do that paul")) {
+                triggerPaulSequence();
             }
         }
 
-        commandInput.addEventListener('input', (e) => handleCommandValue(e.target.value));
+        commandInput.addEventListener('input', (e) => handleCommandValue(e.target.value, false));
         commandInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') handleCommandValue(e.target.value);
+            if (e.key === 'Enter') handleCommandValue(e.target.value, true);
         });
 
         function closeCharacterEvent() {
@@ -2127,6 +3021,7 @@
             scene.add(masterGroup);
             masterGroup.position.set(0, ORB_CENTER_Y, 0);
             masterGroup.scale.setScalar(0.001);
+            setOrbOpacity(1.0);
             isOrbActive = true;
 
             seqState = 'CHAR_RESTORING';
@@ -2174,15 +3069,61 @@
             return bestIdx;
         }
 
+        function hitTestThirdWorld(clientX, clientY) {
+            const ndc = new THREE.Vector2(
+                (clientX / window.innerWidth) * 2 - 1,
+                -(clientY / window.innerHeight) * 2 + 1
+            );
+            raycaster.setFromCamera(ndc, camera);
+
+            if (pentagramRevealActive) {
+                const pentHits = raycaster.intersectObjects(pentagrams.map(p => p.hitMesh), false);
+                if (pentHits.length > 0) {
+                    return { type: 'pentagram', idx: pentHits[0].object.userData.pentagramIdx };
+                }
+            }
+
+            const layerHits = raycaster.intersectObjects(thirdWorldLayers.map(l => l.hitMesh), false);
+            if (layerHits.length > 0) {
+                return { type: 'layer', idx: layerHits[0].object.userData.twLayerIdx };
+            }
+            return null;
+        }
+
         window.addEventListener('pointerdown', (e) => {
             if (seqState === 'CHAR_HUD') {
                 closeCharacterEvent();
+                return;
+            }
+            if (seqState === 'PAUL_ACTIVE') {
+                if (paulTypingDone) closePaulSequence();
                 return;
             }
             if (seqState === 'HISTORY_ACTIVE') {
                 const hitIdx = hitTestHistoryNode(e.clientX, e.clientY);
                 if (hitIdx !== -1) {
                     selectHistoryNode(hitIdx);
+                }
+                return;
+            }
+            if (seqState === 'THIRD_WORLD_ACTIVE') {
+                const hit = hitTestThirdWorld(e.clientX, e.clientY);
+                if (hit) {
+                    if (hit.type === 'pentagram') {
+                        const p = pentagrams[hit.idx];
+                        if (p.isYellow) {
+                            // 노란색 오망성 클릭 -> 카니지 캐릭터 정보 전환 애니메이션
+                            thirdWorldUI.classList.remove('active');
+                            twLayerLabel.classList.remove('visible');
+                            document.body.classList.remove('world-mode', 'world-hover');
+                            seqState = 'THIRD_WORLD_CARNAGE_BURST';
+                            seqStartTime = clock.getElapsedTime();
+                        } else {
+                            p.shakeOffset = 1.0;
+                        }
+                    } else if (hit.type === 'layer') {
+                        selectThirdWorldLayer(hit.idx);
+                    }
                 }
                 return;
             }
@@ -2229,6 +3170,8 @@
             const elapsedTime = clock.getElapsedTime();
             let currentAnaglyph = 0.0;
             let currentFlashWhite = 0.0;
+            let currentRedGlitch = 0.0;
+            let currentAnalog = 0.0;
             let introNodeRadiusFactor = 1.0;
 
             // --- 사이트 최초 진입 인트로 어셈블리 컷신 ---
@@ -2263,11 +3206,363 @@
                 if (p >= 1.0) {
                     camera.position.z = CAMERA_DEFAULT_Z;
                     coreShellMat.uniforms.uIntroAssemble.value = 1.0;
-                    coreShellMat.uniforms.uIntroAlpha.value = 1.0;
-                    ringMaterial.opacity = 0.26;
-                    outerMat.uniforms.uOpacity.value = 1.0;
-                    linesMat.opacity = 0.78;
+                    setOrbOpacity(1.0);
                     seqState = 'NORMAL';
+                    commandWrapper.classList.remove('hidden');
+                }
+            }
+
+            // --- [대주교 / ARCHBISHOP] 시퀀스 ---
+            else if (seqState === 'ARCHBISHOP_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.72;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.2);
+
+                masterGroup.scale.setScalar(Math.max(0.05, 1.0 - easeIn * 0.92));
+                masterGroup.position.y = ORB_CENTER_Y + easeIn * 7.4;
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    archCenterCoreMat.opacity = 0.0;
+                    archCenterCore.scale.set(0.01, 0.01, 0.01);
+                    archbishopRings.forEach((r) => {
+                        r.container.position.copy(r.startVec);
+                        r.container.scale.setScalar(r.baseRadius);
+                        r.lineMat.color.setHex(0xffffff);
+                        r.lineMat.opacity = 0.0;
+                        r.dots.forEach(d => {
+                            d.mat.color.setHex(0xffffff);
+                            d.mat.opacity = 0.0;
+                        });
+                    });
+                    scene.add(archbishopGroup);
+
+                    seqState = 'ARCHBISHOP_RINGS_CONVERGE';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'ARCHBISHOP_RINGS_CONVERGE') {
+                const dt = elapsedTime - seqStartTime;
+                const appearDur = 0.75;
+                const convergeDur = 4.2;
+                const totalDur = appearDur + convergeDur;
+
+                const fadeInP = Math.min(1.0, dt / appearDur);
+                const convRaw = Math.max(0.0, Math.min(1.0, (dt - appearDur * 0.55) / convergeDur));
+
+                // 처음엔 곡선으로 부드럽게 모이다가, 중심에 가까워질수록 점차 천천히 저항하듯 모임
+                const tCurve = Math.pow(convRaw, 0.62);
+                const slowNearCenter = 1.0 - Math.pow(1.0 - tCurve, 2.2);
+
+                // 중심에 가까워질수록 붉은 글리치 & 떨림 증가
+                const proximity = THREE.MathUtils.smoothstep(convRaw, 0.18, 0.98);
+                currentRedGlitch = proximity * (0.62 + 0.38 * Math.abs(Math.sin(elapsedTime * 19.0)));
+                currentBgVec.lerpVectors(MAIN_BG_COLOR, ARCHBISHOP_BG_COLOR, proximity * 0.85);
+
+                const trembleAmp = Math.pow(proximity, 1.65) * 0.095 * (1.0 - THREE.MathUtils.smoothstep(convRaw, 0.94, 1.0));
+
+                archbishopRings.forEach((r, idx) => {
+                    const oneMinusT = 1.0 - slowNearCenter;
+                    // Quadratic Bezier: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * (0,0,0)
+                    const posX = oneMinusT * oneMinusT * r.startVec.x + 2 * oneMinusT * slowNearCenter * r.ctrlVec.x;
+                    const posY = oneMinusT * oneMinusT * r.startVec.y + 2 * oneMinusT * slowNearCenter * r.ctrlVec.y;
+                    const posZ = oneMinusT * oneMinusT * r.startVec.z + 2 * oneMinusT * slowNearCenter * r.ctrlVec.z;
+
+                    const jitterX = Math.sin(elapsedTime * 94.0 + r.seed) * trembleAmp;
+                    const jitterY = Math.cos(elapsedTime * 107.0 + r.seed * 1.3) * trembleAmp;
+                    const jitterZ = Math.sin(elapsedTime * 82.0 + r.seed * 1.7) * trembleAmp * 0.5;
+
+                    r.container.position.set(posX + jitterX, posY + jitterY, posZ + jitterZ);
+                    r.container.rotation.x = r.tiltX * (1.0 - slowNearCenter);
+                    r.container.rotation.y = r.tiltY * (1.0 - slowNearCenter);
+                    r.container.rotation.z = slowNearCenter * (idx % 2 === 0 ? 1.8 : -1.8);
+
+                    const currentRadius = r.baseRadius * Math.max(0.015, 1.0 - Math.pow(convRaw, 1.15) * 0.985);
+                    r.container.scale.setScalar(currentRadius);
+
+                    const baseAlpha = fadeInP * (0.42 + proximity * 0.36) * (1.0 - THREE.MathUtils.smoothstep(convRaw, 0.96, 1.0));
+                    r.lineMat.opacity = baseAlpha;
+                    r.lineMat.color.setRGB(
+                        1.0,
+                        1.0 - proximity * 0.68,
+                        1.0 - proximity * 0.72
+                    );
+
+                    r.dots.forEach((d) => {
+                        d.angle += d.speed * 0.025;
+                        d.mesh.position.set(Math.cos(d.angle), Math.sin(d.angle), 0);
+                        d.mesh.scale.setScalar(0.95 / Math.max(0.18, currentRadius));
+                        d.mat.opacity = fadeInP * 0.88 * (1.0 - THREE.MathUtils.smoothstep(convRaw, 0.95, 1.0));
+                        d.mat.color.setRGB(1.0, 1.0 - proximity * 0.52, 1.0 - proximity * 0.56);
+                    });
+                });
+
+                // 중앙 단일 점 수렴 광채
+                const coreBuild = THREE.MathUtils.smoothstep(convRaw, 0.78, 1.0);
+                archCenterCoreMat.opacity = coreBuild * 0.95;
+                archCenterCore.scale.setScalar(0.02 + coreBuild * 0.52);
+
+                if (dt >= totalDur) {
+                    seqState = 'ARCHBISHOP_POINT_HOLD';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'ARCHBISHOP_POINT_HOLD') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.55;
+                const p = Math.min(1.0, dt / duration);
+
+                currentRedGlitch = (1.0 - p) * 0.85;
+                currentBgVec.copy(ARCHBISHOP_BG_COLOR);
+
+                const pulse = Math.sin(p * Math.PI);
+                archCenterCoreMat.opacity = 1.0 - p * 0.95;
+                archCenterCore.scale.setScalar(0.54 + pulse * 0.9 - p * 0.45);
+
+                if (p >= 1.0) {
+                    scene.remove(archbishopGroup);
+                    seqState = 'CHAR_HUD';
+                    hudEnteredTime = elapsedTime;
+                    showCharacterHUD('archbishop');
+                }
+            }
+
+            // --- [제3세계 / THIRD WORLD] 시퀀스 ---
+            else if (seqState === 'THIRD_WORLD_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.75;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 2.4);
+
+                masterGroup.scale.setScalar(1.0 + easeOut * 2.8);
+                setOrbOpacity(1.0 - Math.min(1.0, p * 1.25));
+                currentBgVec.lerpVectors(MAIN_BG_COLOR, THIRD_WORLD_BG_COLOR, p);
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    hoveredTwLayer = -1;
+                    selectedTwLayer = -1;
+                    hoveredPentagram = -1;
+                    pentagramRevealActive = false;
+                    thirdWorldGroup.remove(pentagramGroup);
+
+                    thirdWorldGroup.scale.setScalar(0.28);
+                    thirdWorldLayers.forEach(l => {
+                        l.wireMat.opacity = 0.0;
+                        l.highlightAmt = 0;
+                    });
+                    twConduitMat.opacity = 0.0;
+                    scene.add(thirdWorldGroup);
+
+                    seqState = 'THIRD_WORLD_ENTER';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'THIRD_WORLD_ENTER') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.25;
+                const p = Math.min(1.0, dt / duration);
+                const ease = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                thirdWorldGroup.scale.setScalar(0.28 + ease * 0.72);
+                thirdWorldLayers.forEach(l => {
+                    l.wireMat.opacity = 0.42 * ease;
+                });
+                twConduitMat.opacity = 0.28 * ease;
+
+                if (p >= 1.0) {
+                    seqState = 'THIRD_WORLD_ACTIVE';
+                    thirdWorldUI.classList.add('active');
+                }
+            } else if (seqState === 'THIRD_WORLD_CARNAGE_BURST') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.75;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.0);
+
+                thirdWorldLayers.forEach(l => {
+                    l.wireMat.opacity = 0.42 * (1.0 - p);
+                });
+                twConduitMat.opacity = 0.28 * (1.0 - p);
+
+                pentagrams.forEach(pent => {
+                    if (pent.isYellow) {
+                        pent.container.scale.setScalar(1.18 + easeIn * 3.8);
+                        pent.mat.opacity = 1.0 - easeIn;
+                        pent.haloMat.opacity = 0.95 * (1.0 - easeIn * 0.85);
+                    } else {
+                        pent.mat.opacity = Math.max(0, 0.72 * (1.0 - p * 1.8));
+                        pent.haloMat.opacity = Math.max(0, 0.45 * (1.0 - p * 1.8));
+                    }
+                });
+
+                if (p >= 1.0) {
+                    scene.remove(thirdWorldGroup);
+                    thirdWorldGroup.remove(pentagramGroup);
+                    pentagramRevealActive = false;
+                    seqState = 'CHAR_HUD';
+                    hudEnteredTime = elapsedTime;
+                    showCharacterHUD('carnage');
+                }
+            } else if (seqState === 'THIRD_WORLD_EXIT_NORMAL') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.75;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                thirdWorldGroup.scale.setScalar(Math.max(0.2, 1.0 - p * 0.65));
+                thirdWorldLayers.forEach(l => {
+                    l.wireMat.opacity = 0.42 * Math.max(0, 1.0 - p * 1.5);
+                });
+                twConduitMat.opacity = 0.28 * Math.max(0, 1.0 - p * 1.5);
+                currentBgVec.lerpVectors(THIRD_WORLD_BG_COLOR, MAIN_BG_COLOR, easeOut);
+
+                if (p >= 0.35 && !isOrbActive) {
+                    scene.add(masterGroup);
+                    masterGroup.position.set(0, ORB_CENTER_Y, 0);
+                    masterGroup.scale.setScalar(0.001);
+                    setOrbOpacity(1.0);
+                    isOrbActive = true;
+                }
+                if (isOrbActive) {
+                    const orbP = Math.max(0.0, (p - 0.35) / 0.65);
+                    const orbEase = 1.0 - Math.pow(1.0 - orbP, 3.0);
+                    masterGroup.scale.setScalar(Math.max(0.001, orbEase));
+                }
+
+                if (p >= 1.0) {
+                    scene.remove(thirdWorldGroup);
+                    currentBgVec.copy(MAIN_BG_COLOR);
+                    masterGroup.scale.setScalar(1.0);
+                    activeCharKey = null;
+                    seqState = 'NORMAL';
+                    commandInput.value = '';
+                    commandWrapper.classList.remove('hidden');
+                }
+            }
+
+            // 제3세계 실시간 호버 & 6개 오망성 애니메이션
+            if (seqState === 'THIRD_WORLD_ENTER' || seqState === 'THIRD_WORLD_ACTIVE') {
+                twTiltGroup.rotation.y = Math.PI * 0.25 + Math.sin(elapsedTime * 0.35) * 0.08;
+
+                if (seqState === 'THIRD_WORLD_ACTIVE' && isMouseInside) {
+                    const hit = hitTestThirdWorld(
+                        (mouseNDC.x * 0.5 + 0.5) * window.innerWidth,
+                        (-mouseNDC.y * 0.5 + 0.5) * window.innerHeight
+                    );
+                    if (hit && hit.type === 'pentagram') {
+                        hoveredPentagram = hit.idx;
+                        hoveredTwLayer = -1;
+                    } else if (hit && hit.type === 'layer') {
+                        hoveredPentagram = -1;
+                        hoveredTwLayer = hit.idx;
+                    } else {
+                        hoveredPentagram = -1;
+                        hoveredTwLayer = -1;
+                    }
+                    document.body.classList.toggle('world-hover', hoveredPentagram !== -1 || hoveredTwLayer !== -1);
+                }
+
+                if (seqState === 'THIRD_WORLD_ACTIVE') {
+                    thirdWorldLayers.forEach((l) => {
+                        const targetHl = (hoveredTwLayer === l.idx || selectedTwLayer === l.idx) ? 1.0 : 0.0;
+                        l.highlightAmt += (targetHl - l.highlightAmt) * 0.14;
+                        l.wireMat.opacity = 0.38 + l.highlightAmt * 0.52;
+                        if (l.idx === 2 && selectedTwLayer === 2) {
+                            l.wireMat.color.setRGB(1.0, 0.88, 0.45);
+                        } else {
+                            l.wireMat.color.setRGB(0.9 + l.highlightAmt * 0.1, 0.93 + l.highlightAmt * 0.07, 0.98);
+                        }
+                        l.holder.position.y = l.baseY + Math.sin(elapsedTime * 1.1 + l.idx * 1.2) * 0.02;
+                    });
+                }
+
+                if (pentagramRevealActive) {
+                    const pDt = elapsedTime - pentagramRevealStart;
+                    pentagrams.forEach((pent, idx) => {
+                        const delay = idx * 0.08;
+                        const prog = THREE.MathUtils.clamp((pDt - delay) / 0.85, 0.0, 1.0);
+                        const ease = 1.0 - Math.pow(1.0 - prog, 3.0);
+
+                        pent.shakeOffset *= 0.86;
+                        const shakeX = Math.sin(elapsedTime * 72.0 + idx) * pent.shakeOffset * 0.08;
+                        const bobY = Math.sin(elapsedTime * 2.1 + idx * 1.15) * 0.045;
+
+                        pent.container.position.lerpVectors(pent.startPos, pent.targetPos, ease);
+                        pent.container.position.x += shakeX;
+                        pent.container.position.y += bobY;
+
+                        const isHov = (hoveredPentagram === idx);
+                        const targetScale = ease * (isHov ? 1.22 : (pent.isYellow ? 1.06 : 0.95));
+                        pent.hoverScale += (targetScale - pent.hoverScale) * 0.16;
+                        pent.container.scale.setScalar(Math.max(0.001, pent.hoverScale));
+
+                        pent.container.rotation.z = elapsedTime * (idx % 2 === 0 ? 0.35 : -0.35) + idx;
+
+                        const pulseYellow = pent.isYellow ? (0.85 + 0.15 * Math.sin(elapsedTime * 4.2)) : 0.72;
+                        pent.mat.opacity = ease * (isHov ? 1.0 : pulseYellow);
+                        pent.haloMat.opacity = ease * (isHov ? 0.88 : (pent.isYellow ? 0.58 : 0.24));
+                    });
+                }
+            }
+
+            // --- [don't do that paul.] 아날로그 기록지 시퀀스 ---
+            else if (seqState === 'PAUL_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 2.2);
+
+                masterGroup.scale.setScalar(1.0 + easeOut * 3.0);
+                setOrbOpacity(1.0 - Math.min(1.0, p * 1.2));
+                currentBgVec.lerpVectors(MAIN_BG_COLOR, PAUL_BG_COLOR, p * 0.5);
+                currentAnalog = p * 0.45;
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+                    seqState = 'PAUL_ANALOG_IN';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'PAUL_ANALOG_IN') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.1;
+                const p = Math.min(1.0, dt / duration);
+                const ease = 1.0 - Math.pow(1.0 - p, 2.5);
+
+                currentBgVec.lerpVectors(
+                    MAIN_BG_COLOR.clone().lerp(PAUL_BG_COLOR, 0.5),
+                    PAUL_BG_COLOR,
+                    ease
+                );
+                currentAnalog = 0.45 + ease * 0.55;
+
+                if (p >= 1.0) {
+                    currentAnalog = 1.0;
+                    seqState = 'PAUL_ACTIVE';
+                    startPaulTypewriter();
+                }
+            } else if (seqState === 'PAUL_ACTIVE') {
+                currentBgVec.copy(PAUL_BG_COLOR);
+                currentAnalog = 1.0;
+            } else if (seqState === 'PAUL_RESTORING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                currentAnalog = 1.0 - easeOut;
+                currentBgVec.lerpVectors(PAUL_BG_COLOR, MAIN_BG_COLOR, easeOut);
+                masterGroup.scale.setScalar(Math.max(0.001, easeOut));
+
+                if (p >= 1.0) {
+                    currentAnalog = 0.0;
+                    currentBgVec.copy(MAIN_BG_COLOR);
+                    masterGroup.scale.setScalar(1.0);
+                    seqState = 'NORMAL';
+                    commandInput.value = '';
                     commandWrapper.classList.remove('hidden');
                 }
             }
@@ -2337,6 +3632,7 @@
                     scene.add(masterGroup);
                     masterGroup.position.set(0, ORB_CENTER_Y, 0);
                     masterGroup.scale.setScalar(0.001);
+                    setOrbOpacity(1.0);
                     isOrbActive = true;
                 }
                 if (isOrbActive) {
@@ -2450,6 +3746,7 @@
                     scene.add(masterGroup);
                     masterGroup.position.set(0, ORB_CENTER_Y, 0);
                     masterGroup.scale.setScalar(0.001);
+                    setOrbOpacity(1.0);
                     isOrbActive = true;
                     seqState = 'RESTORING';
                     seqStartTime = elapsedTime;
@@ -2593,6 +3890,10 @@
 
                 if (activeCharKey === 'host') {
                     currentBgVec.lerpVectors(HOST_BLUE_COLOR, MAIN_BG_COLOR, easeOut);
+                } else if (activeCharKey === 'archbishop') {
+                    currentBgVec.lerpVectors(ARCHBISHOP_BG_COLOR, MAIN_BG_COLOR, easeOut);
+                } else if (activeCharKey === 'carnage') {
+                    currentBgVec.lerpVectors(THIRD_WORLD_BG_COLOR, MAIN_BG_COLOR, easeOut);
                 }
                 masterGroup.scale.setScalar(Math.max(0.001, easeOut));
 
@@ -2856,6 +4157,8 @@
             postPass.uniforms.uTime.value = elapsedTime;
             postPass.uniforms.uAnaglyph.value = currentAnaglyph;
             postPass.uniforms.uFlashWhite.value = currentFlashWhite;
+            postPass.uniforms.uRedGlitch.value = currentRedGlitch;
+            postPass.uniforms.uAnalog.value = currentAnalog;
 
             composer.render();
         }
