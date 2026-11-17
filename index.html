@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reference Media - Interactive Node Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=IBM+Plex+Mono:wght@300;400;500&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #1c1c1c;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        canvas#webgl-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        canvas#webgl-canvas:active {
+            cursor: grabbing;
+        }
+
+        /* 호스트 푸른 모자이크 전환용 캔버스 */
+        #mosaic-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 28;
+            pointer-events: none;
+            display: none;
+        }
+
+        /* 오브 하단 사각형 흰색 테두리 입력 칸 */
+        #command-wrapper {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        #command-wrapper.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 8px);
+        }
+        #command-input {
+            width: 95px;
+            padding: 4px 7px;
+            background: rgba(28, 28, 28, 0.72);
+            border: 1px solid #ffffff;
+            border-radius: 0;
+            color: #ffffff;
+            font-family: 'Cinzel', 'Pretendard', serif;
+            font-weight: 500;
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-align: center;
+            outline: none;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+        #command-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.12);
+        }
+
+        /* GOD 폭발 후 검은색 텍스트 */
+        #genesis-text {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #000000;
+            font-family: 'Cinzel', Georgia, "Times New Roman", serif;
+            font-size: clamp(18px, 2.4vw, 30px);
+            letter-spacing: 0.04em;
+            text-align: center;
+            z-index: 25;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #genesis-text.visible {
+            opacity: 1;
+        }
+
+        /* Ender's Game 스타일 HUD 캐릭터 정보 오버레이 */
+        #hud-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 28px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+        #hud-overlay.active {
+            pointer-events: auto;
+            opacity: 1;
+            cursor: pointer;
+        }
+
+        .hud-container {
+            width: 100%;
+            max-width: 920px;
+            display: grid;
+            grid-template-columns: 0.9fr 1.35fr;
+            gap: 44px;
+            color: rgba(245, 247, 250, 0.92);
+        }
+
+        @media (max-width: 760px) {
+            .hud-container {
+                grid-template-columns: 1fr;
+                gap: 24px;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+        }
+
+        .hud-col {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .hud-header-block {
+            position: relative;
+            padding-bottom: 10px;
+        }
+        .hud-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Rajdhani', 'Pretendard', sans-serif;
+            font-size: 24px;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #ffffff;
+        }
+        .hud-badge {
+            padding: 1px 8px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            background: rgba(158, 28, 28, 0.72);
+            color: #ffdfdf;
+            border: 1px solid rgba(255, 90, 90, 0.35);
+        }
+        #hud-overlay.theme-host .hud-badge {
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        #hud-overlay.theme-dareka .hud-badge {
+            background: rgba(45, 130, 185, 0.55);
+            color: #dff4ff;
+            border: 1px solid rgba(130, 215, 255, 0.45);
+        }
+
+        .hud-scan-line {
+            position: relative;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.35);
+            margin-top: 6px;
+            transform-origin: left;
+            transform: scaleX(0);
+            transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #hud-overlay.active .hud-scan-line {
+            transform: scaleX(1);
+        }
+        .hud-scan-line::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 3px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+        .hud-subtitle {
+            margin-top: 6px;
+            font-family: 'IBM Plex Mono', 'Pretendard', monospace;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+        }
+
+        .hud-panel {
+            position: relative;
+            padding: 12px 16px;
+        }
+        .hud-panel::before,
+        .hud-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 7px;
+            border-top: 1px solid rgba(255, 255, 255, 0.42);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.42);
+            transition: opacity 0.4s ease 0.2s;
+            opacity: 0;
+        }
+        .hud-panel::before {
+            left: 0;
+            border-left: 1px solid rgba(255, 255, 255, 0.42);
+        }
+        .hud-panel::after {
+            right: 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.42);
+        }
+        #hud-overlay.active .hud-panel::before,
+        #hud-overlay.active .hud-panel::after {
+            opacity: 1;
+        }
+
+        .hud-section-label {
+            font-family: 'Rajdhani', 'Pretendard', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .hud-kv-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .hud-kv-row {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 12px;
+            font-size: 12px;
+            line-height: 1.45;
+            align-items: baseline;
+        }
+        .hud-key {
+            font-family: 'IBM Plex Mono', 'Pretendard', monospace;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .hud-val {
+            font-family: 'Pretendard', 'IBM Plex Mono', sans-serif;
+            font-weight: 500;
+            color: #ffffff;
+            letter-spacing: 0.04em;
+        }
+        .hud-val.highlight-badge {
+            display: inline-block;
+            padding: 0 5px;
+            background: rgba(158, 28, 28, 0.65);
+            color: #ffe3e3;
+        }
+        #hud-overlay.theme-host .hud-val.highlight-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+        #hud-overlay.theme-dareka .hud-val.highlight-badge {
+            background: rgba(45, 130, 185, 0.5);
+            color: #e2f5ff;
+        }
+
+        .hud-notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+        }
+        .hud-note-item {
+            font-size: 12.5px;
+            line-height: 1.62;
+            color: rgba(255, 255, 255, 0.88);
+            letter-spacing: 0.02em;
+            padding-left: 14px;
+            position: relative;
+        }
+        .hud-note-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 5px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.65);
+        }
+
+        .hud-footer-meta {
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.42);
+            border-top: 1px solid rgba(255, 255, 255, 0.16);
+            padding-top: 8px;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <canvas id="mosaic-canvas"></canvas>
+    <div id="command-wrapper">
+        <input id="command-input" type="text" autocomplete="off" spellcheck="false" />
+    </div>
+    <div id="genesis-text">And God said, Let there be light: and there was light.</div>
+    <div id="hud-overlay"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+        // 컬러 상수
+        const MAIN_BG_COLOR = new THREE.Vector3(28 / 255, 28 / 255, 28 / 255);
+        const HOST_BLUE_COLOR = new THREE.Vector3(8 / 255, 52 / 255, 138 / 255);
+        const currentBgVec = MAIN_BG_COLOR.clone();
+        const ORB_CENTER_Y = 0.32;
+        const CAMERA_DEFAULT_Z = 7.0;
+
+        // 캐릭터 데이터 정의
+        const CHARACTER_DATA = {
+            who: {
+                theme: 'theme-who',
+                headerTitle: 'SUBJECT ANALYSIS',
+                badge: 'SURVIVOR',
+                subtitle: 'ARCHIVE RECORD // K-017 // DECAPITATION SURVIVAL CONFIRMED',
+                leftLabel: 'BIOMETRIC PROFILE',
+                rightLabel: 'ANOMALY INTELLIGENCE',
+                subRightLabel: 'TELEMETRY // BLOOD KINETICS',
+                fields: [
+                    { key: '이름', val: '누구지', highlight: true },
+                    { key: '성별', val: '남성' },
+                    { key: '나이', val: '21' },
+                    { key: '분류', val: '인간' },
+                    { key: '키 & 몸무게', val: '153cm & 47kg' }
+                ],
+                notes: [
+                    '- 교단 의식 생존자.',
+                    '- 모종의 이유로 머리가 잘린 이후 생존중.',
+                    '- 의식 이전의 기억 및 정보의 상실, 본인은 크게 신경 쓰지 않는듯 보인다.',
+                    '- 본인 혈액의 운동 에너지를 조작하는 이능의 확인.'
+                ],
+                footerLeft: 'STATUS : ACTIVE / UNSTABLE',
+                footerRight: 'CLICK SCREEN TO CLOSE'
+            },
+            host: {
+                theme: 'theme-host',
+                headerTitle: 'ENTITY DETECTED',
+                badge: 'HOST',
+                subtitle: 'CLASSIFICATION // ANOMALOUS CONSERVATION ENTITY',
+                leftLabel: 'ENTITY PARAMETERS',
+                rightLabel: 'BEHAVIORAL DIRECTIVES',
+                subRightLabel: 'DOMAIN RULE PROTOCOL',
+                fields: [
+                    { key: '이름', val: '호스트', highlight: true },
+                    { key: '성별', val: '불명' },
+                    { key: '나이', val: '불명' },
+                    { key: '분류', val: '악마' },
+                    { key: '키 & 몸무게', val: '190cm & 가변형' }
+                ],
+                notes: [
+                    '- 가변형 형질의 신체를 지닌 것으로 보이며, 명암이 구분되지 않는 푸른 인간형의 외형을 하고 있다.',
+                    '- 인류, 즉 인간을 아끼고 보존하는 것을 목적으로 하는 정체불명의 존재. 일정 범위의 공간에 규칙을 부여하고, 그 규칙의 이행 여부에 따라 보상과 처벌을 내릴 수 있다.',
+                    '- 다수의 안위와 행복을 위해서라면 소수를 희생시키는 것도 마다하지 않으며, 설령 그것이 합당하지 않은 희생일지라도 \'경고\'를 명목으로 인간을 공격하는 모습을 보인다.',
+                    '- 규칙 부여 이전의 비활동기에는 공격적인 모습이 크게 보이지 않는다.'
+                ],
+                footerLeft: 'PHASE : RULE ENFORCEMENT',
+                footerRight: 'CLICK SCREEN TO CLOSE'
+            },
+            dareka: {
+                theme: 'theme-dareka',
+                headerTitle: 'AVATAR SYNCHRONIZED',
+                badge: 'UNBOUND',
+                subtitle: 'LINK STATUS // DISCONNECTED FROM GREATER WILL // FREE WILL ACTIVE',
+                leftLabel: 'AVATAR METRICS',
+                rightLabel: 'COMBAT & AUTHORITY LOG',
+                subRightLabel: 'PLAYER PRIVILEGE // RESET ENABLED',
+                fields: [
+                    { key: '이름', val: '다레카', highlight: true },
+                    { key: '성별', val: '불명' },
+                    { key: '나이', val: '1.0e13' },
+                    { key: '분류', val: '아바타' },
+                    { key: '키 & 몸무게', val: '180cm & 76kg' }
+                ],
+                notes: [
+                    '교단 의식 생존자.',
+                    '거대한 의지의 아바타, 다만 자유의지의 존재가 확인된다.',
+                    '주로 PVP나 액션류의 세계를 방문함. 신체능력과 운동신경의 우수함.',
+                    '최근 모종의 이유로 거대한 의지와의 연결이 끊어져 자유를 되찾았다.',
+                    '플레이어로서의 권한은 남아있기에 죽어도(reset) 부활하며 게임이나 세계의 플레이어의 권한을 부여받는다.'
+                ],
+                footerLeft: 'AUTHORITY : PLAYER // RESET ACTIVE',
+                footerRight: 'CLICK SCREEN TO CLOSE'
+            }
+        };
+
+        // 1. 기본 씬, 카메라, 렌더러 설정
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, CAMERA_DEFAULT_Z);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.domElement.id = 'webgl-canvas';
+        document.body.appendChild(renderer.domElement);
+
+        const masterGroup = new THREE.Group();
+        masterGroup.position.y = ORB_CENTER_Y;
+        scene.add(masterGroup);
+
+        // 2. 독자적 애니메이션을 가지는 궤도(Rings)
+        const orbitConfigs = [
+            { 
+                rx: 2.32, ry: 0.86, 
+                baseRot: new THREE.Euler(0.65, 0.35, 0.4), 
+                rotSpeed: new THREE.Vector3(0.16, -0.22, 0.11),
+                wobbleFreq: 0.7, wobbleAmp: 0.25,
+                speed: 1.35, phase: 0.0 
+            },
+            { 
+                rx: 2.32, ry: 0.86, 
+                baseRot: new THREE.Euler(-0.55, 0.5, -0.7), 
+                rotSpeed: new THREE.Vector3(-0.20, 0.14, -0.18),
+                wobbleFreq: 0.55, wobbleAmp: 0.3,
+                speed: -1.05, phase: 2.1 
+            },
+            { 
+                rx: 2.22, ry: 0.96, 
+                baseRot: new THREE.Euler(0.25, -0.7, 1.1), 
+                rotSpeed: new THREE.Vector3(0.13, 0.26, -0.14),
+                wobbleFreq: 0.85, wobbleAmp: 0.22,
+                speed: 1.2, phase: 4.2 
+            }
+        ];
+
+        const ringMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.26,
+            blending: THREE.AdditiveBlending
+        });
+
+        const sharedRingGeos = [];
+        orbitConfigs.forEach(cfg => {
+            const curve = new THREE.EllipseCurve(0, 0, cfg.rx, cfg.ry, 0, 2 * Math.PI, false, 0);
+            const points = curve.getPoints(128);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            sharedRingGeos.push(geometry);
+            
+            const group = new THREE.Group();
+            group.rotation.copy(cfg.baseRot);
+            
+            for (let i = 0; i < 3; i++) {
+                const line = new THREE.LineLoop(geometry, ringMaterial);
+                line.scale.setScalar(1 + (i - 1) * 0.007);
+                group.add(line);
+            }
+            
+            masterGroup.add(group);
+            cfg.group = group;
+        });
+
+        const targetPoints = [
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3()
+        ];
+
+        // 3. 다층 입자/노드 쉘(Core Layered Particle Sphere)
+        function createLayeredShellGeometry(configs) {
+            let totalVerts = 0;
+            const temp = configs.map(cfg => {
+                const g = new THREE.SphereGeometry(cfg.radius, cfg.wSeg, cfg.hSeg);
+                totalVerts += g.attributes.position.count;
+                return { geo: g, layerId: cfg.layerId };
+            });
+
+            const positions = new Float32Array(totalVerts * 3);
+            const normals = new Float32Array(totalVerts * 3);
+            const layers = new Float32Array(totalVerts);
+            const randoms = new Float32Array(totalVerts);
+
+            let off = 0;
+            temp.forEach(({ geo, layerId }) => {
+                const posArr = geo.attributes.position.array;
+                const normArr = geo.attributes.normal.array;
+                const count = geo.attributes.position.count;
+
+                positions.set(posArr, off * 3);
+                normals.set(normArr, off * 3);
+                for (let i = 0; i < count; i++) {
+                    layers[off + i] = layerId;
+                    randoms[off + i] = Math.random();
+                }
+                off += count;
+                geo.dispose();
+            });
+
+            const buf = new THREE.BufferGeometry();
+            buf.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            buf.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+            buf.setAttribute('aLayer', new THREE.BufferAttribute(layers, 1));
+            buf.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+            return buf;
+        }
+
+        const coreShellGeo = createLayeredShellGeometry([
+            { radius: 0.96, wSeg: 90, hSeg: 64, layerId: 0.0 },
+            { radius: 1.14, wSeg: 130, hSeg: 90, layerId: 1.0 },
+            { radius: 1.24, wSeg: 140, hSeg: 96, layerId: 2.0 }
+        ]);
+
+        // 복제 오브용 3중 레이어 쉘 (원본과 동일한 실루엣 & 깊이감 유지)
+        const cloneShellGeo = createLayeredShellGeometry([
+            { radius: 0.96, wSeg: 42, hSeg: 30, layerId: 0.0 },
+            { radius: 1.14, wSeg: 58, hSeg: 42, layerId: 1.0 },
+            { radius: 1.24, wSeg: 62, hSeg: 44, layerId: 2.0 }
+        ]);
+
+        const coreShellMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+                uTargets: { value: targetPoints },
+                uLocalMouse: { value: new THREE.Vector3(999, 999, 999) },
+                uMouseActive: { value: 0.0 }
+            },
+            vertexShader: `
+                attribute float aLayer;
+                attribute float aRandom;
+
+                uniform float uTime;
+                uniform float uPixelRatio;
+                uniform vec3 uTargets[4];
+                uniform vec3 uLocalMouse;
+                uniform float uMouseActive;
+
+                varying float vFresnel;
+                varying float vLayer;
+                varying float vRidge;
+                varying float vRandom;
+                varying float vMouseGlow;
+
+                vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+                vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+                float snoise(vec3 v){ 
+                    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                    vec3 i  = floor(v + dot(v, C.yyy));
+                    vec3 x0 = v - i + dot(i, C.xxx);
+                    vec3 g = step(x0.yzx, x0.xyz);
+                    vec3 l = 1.0 - g;
+                    vec3 i1 = min(g.xyz, l.zxy);
+                    vec3 i2 = max(g.xyz, l.zxy);
+                    vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+                    vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+                    vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+                    i = mod(i, 289.0); 
+                    vec4 p = permute(permute(permute( 
+                                i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                              + i.y + vec4(0.0, i1.y, i2.y, 1.0)) 
+                              + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                    float n_ = 1.0/7.0;
+                    vec3 ns = n_ * D.wyz - D.xzx;
+                    vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+                    vec4 x_ = floor(j * ns.z);
+                    vec4 y_ = floor(j - 7.0 * x_);
+                    vec4 x = x_ *ns.x + ns.yyyy;
+                    vec4 y = y_ *ns.x + ns.yyyy;
+                    vec4 h = 1.0 - abs(x) - abs(y);
+                    vec4 b0 = vec4(x.xy, y.xy);
+                    vec4 b1 = vec4(x.zw, y.zw);
+                    vec4 s0 = floor(b0)*2.0 + 1.0;
+                    vec4 s1 = floor(b1)*2.0 + 1.0;
+                    vec4 sh = -step(h, vec4(0.0));
+                    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                    vec3 p0 = vec3(a0.xy,h.x);
+                    vec3 p1 = vec3(a0.zw,h.y);
+                    vec3 p2 = vec3(a1.xy,h.z);
+                    vec3 p3 = vec3(a1.zw,h.w);
+                    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+                    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                    m = m * m;
+                    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+                }
+
+                vec3 computeDisplacement(vec3 basePos, vec3 dir, out float ridgeVal, out float mouseGlow) {
+                    float t = uTime * 0.35;
+                    float layerOffset = aLayer * 0.45;
+
+                    float n1 = snoise(dir * 1.85 + vec3(t, -t * 0.7, layerOffset));
+                    float n2 = snoise(dir * 3.6 - vec3(t * 0.8, t * 0.5, -layerOffset)) * 0.45;
+                    
+                    float ridge = 1.0 - abs(n1);
+                    ridgeVal = pow(ridge, 2.2);
+
+                    float dispAmount = (n1 * 0.17 + n2 * 0.08);
+                    if (aLayer > 1.5) {
+                        dispAmount *= 1.12;
+                    }
+
+                    vec3 newPos = basePos + dir * dispAmount;
+
+                    for (int i = 0; i < 4; i++) {
+                        vec3 tDir = normalize(uTargets[i]);
+                        float align = max(0.0, dot(dir, tDir));
+                        float pull = pow(align, 8.0) * 0.22;
+                        newPos += (uTargets[i] - newPos) * pull;
+                    }
+
+                    mouseGlow = 0.0;
+                    if (uMouseActive > 0.5) {
+                        vec3 toMouse = newPos - uLocalMouse;
+                        float dist = length(toMouse);
+                        float radius = 1.35;
+                        if (dist < radius && dist > 0.001) {
+                            float force = pow(1.0 - dist / radius, 2.0);
+                            newPos += normalize(toMouse) * force * 0.28;
+                            mouseGlow = force;
+                        }
+                    }
+
+                    return newPos;
+                }
+
+                void main() {
+                    vec3 dir = normalize(position);
+                    float ridgeVal;
+                    float mouseGlow;
+
+                    vec3 displacedPos = computeDisplacement(position, dir, ridgeVal, mouseGlow);
+
+                    float eps = 0.035;
+                    vec3 tangent = normalize(cross(dir, vec3(0.0, 1.0, 0.0)));
+                    if (length(tangent) < 0.01) tangent = normalize(cross(dir, vec3(1.0, 0.0, 0.0)));
+                    vec3 bitangent = normalize(cross(dir, tangent));
+
+                    float d1, d2, g1, g2;
+                    vec3 p1 = computeDisplacement(position + tangent * eps, normalize(position + tangent * eps), d1, g1);
+                    vec3 p2 = computeDisplacement(position + bitangent * eps, normalize(position + bitangent * eps), d2, g2);
+
+                    vec3 displacedNormal = normalize(cross(p1 - displacedPos, p2 - displacedPos));
+                    vec3 viewNormal = normalize(normalMatrix * displacedNormal);
+
+                    vec4 mvPosition = modelViewMatrix * vec4(displacedPos, 1.0);
+                    vec3 viewDir = normalize(-mvPosition.xyz);
+
+                    float ndotv = abs(dot(viewNormal, viewDir));
+                    vFresnel = pow(1.0 - ndotv, 1.85);
+
+                    vLayer = aLayer;
+                    vRidge = ridgeVal;
+                    vRandom = aRandom;
+                    vMouseGlow = mouseGlow;
+
+                    gl_Position = projectionMatrix * mvPosition;
+
+                    float baseSize = (aLayer < 0.5) ? 1.6 : (aLayer < 1.5 ? 2.1 : 1.75);
+                    baseSize += vFresnel * 1.1 + mouseGlow * 2.2;
+                    gl_PointSize = baseSize * uPixelRatio * (5.2 / -mvPosition.z);
+                }
+            `,
+            fragmentShader: `
+                varying float vFresnel;
+                varying float vLayer;
+                varying float vRidge;
+                varying float vRandom;
+                varying float vMouseGlow;
+
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+
+                    float softDot = smoothstep(0.5, 0.05, dist);
+                    float alpha = vFresnel * 0.42 + vRidge * vFresnel * 0.35;
+
+                    if (vLayer < 0.5) {
+                        alpha = alpha * 0.45 + (vRandom > 0.72 ? 0.07 : 0.01);
+                    } else if (vLayer > 1.5) {
+                        alpha *= 0.78;
+                    }
+
+                    alpha += vMouseGlow * 0.55;
+                    alpha *= softDot;
+
+                    vec3 color = vec3(0.92, 0.94, 0.98) + vec3(0.1) * vMouseGlow;
+
+                    gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.95));
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const coreShellPoints = new THREE.Points(coreShellGeo, coreShellMat);
+        masterGroup.add(coreShellPoints);
+
+        // 4. 외부 부유 노드맵(Outer Node Map)
+        const OUTER_COUNT = 46;
+        const outerNodes = [];
+        const outerPositions = new Float32Array(OUTER_COUNT * 3);
+        const outerSizes = new Float32Array(OUTER_COUNT);
+        const outerEnergies = new Float32Array(OUTER_COUNT);
+
+        for (let i = 0; i < OUTER_COUNT; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const radius = 1.52 + Math.random() * 1.22;
+
+            outerNodes.push({
+                baseTheta: theta,
+                basePhi: phi,
+                baseRadius: radius,
+                speedTheta: (Math.random() - 0.5) * 0.65,
+                speedPhi: (Math.random() - 0.5) * 0.5,
+                radialFreq: 0.4 + Math.random() * 0.9,
+                radialAmp: 0.15 + Math.random() * 0.35,
+                phase: Math.random() * Math.PI * 2,
+                pos: new THREE.Vector3(),
+                energy: 0
+            });
+            outerSizes[i] = 2.6 + Math.random() * 4.0;
+        }
+
+        const outerGeo = new THREE.BufferGeometry();
+        outerGeo.setAttribute('position', new THREE.BufferAttribute(outerPositions, 3).setUsage(THREE.DynamicDrawUsage));
+        outerGeo.setAttribute('aSize', new THREE.BufferAttribute(outerSizes, 1));
+        outerGeo.setAttribute('aEnergy', new THREE.BufferAttribute(outerEnergies, 1).setUsage(THREE.DynamicDrawUsage));
+
+        const outerMat = new THREE.ShaderMaterial({
+            vertexShader: `
+                attribute float aSize;
+                attribute float aEnergy;
+                varying float vAlpha;
+                varying float vEnergy;
+                void main() {
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_Position = projectionMatrix * mvPosition;
+                    gl_PointSize = aSize * (1.0 + aEnergy * 1.25) * (6.5 / -mvPosition.z);
+                    vAlpha = smoothstep(4.6, 1.05, length(position));
+                    vEnergy = aEnergy;
+                }
+            `,
+            fragmentShader: `
+                varying float vAlpha;
+                varying float vEnergy;
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    float glow = pow(1.0 - dist * 2.0, 1.8);
+                    gl_FragColor = vec4(vec3(0.95, 0.97, 1.0), glow * vAlpha * (0.7 + vEnergy * 0.55));
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const outerPoints = new THREE.Points(outerGeo, outerMat);
+        masterGroup.add(outerPoints);
+
+        const MAX_LINES = OUTER_COUNT * OUTER_COUNT + OUTER_COUNT * 8;
+        const linePositions = new Float32Array(MAX_LINES * 6);
+        const lineColors = new Float32Array(MAX_LINES * 6);
+
+        const linesGeo = new THREE.BufferGeometry();
+        linesGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3).setUsage(THREE.DynamicDrawUsage));
+        linesGeo.setAttribute('color', new THREE.BufferAttribute(lineColors, 3).setUsage(THREE.DynamicDrawUsage));
+
+        const linesMat = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.78,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const nodeLines = new THREE.LineSegments(linesGeo, linesMat);
+        masterGroup.add(nodeLines);
+
+        // 4-2. 다레카 시퀀스용: 기존 오브와 동일한 외형의 복제 오브 그리드 (화면 밖 2겹 포함)
+        const darekaGroup = new THREE.Group();
+        let darekaClones = [];
+
+        function buildDarekaGrid() {
+            while (darekaGroup.children.length > 0) {
+                darekaGroup.remove(darekaGroup.children[0]);
+            }
+            darekaClones = [];
+
+            const vFov = THREE.MathUtils.degToRad(camera.fov);
+            const visHeight = 2 * Math.tan(vFov / 2) * CAMERA_DEFAULT_Z;
+            const visWidth = visHeight * camera.aspect;
+
+            const colSpacing = 1.55;
+            const rowSpacing = 1.48;
+
+            // 화면을 채우는 기본 홀수 개수 + 화면 밖 사방으로 2겹씩(+4) 추가 생성
+            let cols = Math.max(5, Math.ceil(visWidth / colSpacing));
+            if (cols % 2 === 0) cols += 1;
+            cols += 4;
+
+            let rows = Math.max(3, Math.ceil(visHeight / rowSpacing));
+            if (rows % 2 === 0) rows += 1;
+            rows += 4;
+
+            const halfC = (cols - 1) / 2;
+            const halfR = (rows - 1) / 2;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (c === halfC && r === halfR) continue;
+
+                    const gx = (c - halfC) * colSpacing;
+                    const gy = (r - halfR) * rowSpacing + ORB_CENTER_Y;
+
+                    // 화면 밖(외곽 3.8배 위치)에서 생성되어 축소되며 진입
+                    const startX = gx * 3.8;
+                    const startY = ORB_CENTER_Y + (gy - ORB_CENTER_Y) * 3.8;
+
+                    const cloneObj = new THREE.Group();
+
+                    // 1) 중심 다층 입자 쉘
+                    const shell = new THREE.Points(cloneShellGeo, coreShellMat);
+                    cloneObj.add(shell);
+
+                    // 2) 기존 오브와 동일한 3x3 궤도 링
+                    orbitConfigs.forEach((cfg, idx) => {
+                        const rGroup = new THREE.Group();
+                        rGroup.rotation.copy(cfg.baseRot);
+                        for (let s = 0; s < 3; s++) {
+                            const line = new THREE.LineLoop(sharedRingGeos[idx], ringMaterial);
+                            line.scale.setScalar(1 + (s - 1) * 0.007);
+                            rGroup.add(line);
+                        }
+                        cloneObj.add(rGroup);
+                    });
+
+                    // 3) 기존 오브와 동일한 외부 노드맵 & 연결선 공유
+                    const cloneOuterPts = new THREE.Points(outerGeo, outerMat);
+                    const cloneLines = new THREE.LineSegments(linesGeo, linesMat);
+                    cloneObj.add(cloneOuterPts);
+                    cloneObj.add(cloneLines);
+
+                    cloneObj.quaternion.copy(masterGroup.quaternion);
+                    cloneObj.position.set(startX, startY, 0);
+                    cloneObj.scale.setScalar(0.85);
+                    darekaGroup.add(cloneObj);
+
+                    // 화면 안쪽 영역에 위치하는 오브 중에서만 포커스 후보 선정
+                    const insideViewX = Math.abs(gx) <= (visWidth * 0.36);
+                    const insideViewY = Math.abs(gy - ORB_CENTER_Y) <= (visHeight * 0.32);
+
+                    darekaClones.push({
+                        group: cloneObj,
+                        shell,
+                        startPos: new THREE.Vector3(startX, startY, 0),
+                        gridPos: new THREE.Vector3(gx, gy, 0),
+                        canFocus: insideViewX && insideViewY
+                    });
+                }
+            }
+        }
+
+        // 5. GOD 시퀀스용 6개의 흰 구
+        const sixSpheresGroup = new THREE.Group();
+        sixSpheresGroup.position.y = ORB_CENTER_Y;
+        const sixSpheres = [];
+
+        function createGlowTexture() {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+            grad.addColorStop(0.28, 'rgba(245, 245, 245, 0.55)');
+            grad.addColorStop(0.55, 'rgba(220, 220, 220, 0.15)');
+            grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const glowTex = createGlowTexture();
+        const whiteSphereGeo = new THREE.SphereGeometry(0.21, 48, 48);
+        const whiteSphereMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uOpacity: { value: 1.0 }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPos;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+                    vViewPos = -mv.xyz;
+                    gl_Position = projectionMatrix * mv;
+                }
+            `,
+            fragmentShader: `
+                uniform float uOpacity;
+                varying vec3 vNormal;
+                varying vec3 vViewPos;
+                void main() {
+                    float ndotv = clamp(dot(normalize(vNormal), normalize(vViewPos)), 0.0, 1.0);
+                    float edgeSoft = smoothstep(0.0, 0.35, ndotv);
+                    vec3 col = mix(vec3(0.85), vec3(0.98), ndotv);
+                    gl_FragColor = vec4(col, edgeSoft * uOpacity);
+                }
+            `,
+            transparent: true,
+            depthWrite: false
+        });
+
+        for (let i = 0; i < 6; i++) {
+            const container = new THREE.Group();
+            const mesh = new THREE.Mesh(whiteSphereGeo, whiteSphereMat);
+            const haloMat = new THREE.SpriteMaterial({
+                map: glowTex,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.72,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const halo = new THREE.Sprite(haloMat);
+            halo.scale.set(0.925, 0.925, 0.925);
+
+            container.add(mesh);
+            container.add(halo);
+            sixSpheresGroup.add(container);
+
+            const angle = (i / 6) * Math.PI * 2;
+            sixSpheres.push({
+                container,
+                haloMat,
+                startAngle: angle,
+                startRadius: 9.5 + (i % 2) * 1.5,
+                startZ: (i - 2.5) * 1.6,
+                orbitTilt: (i % 3 - 1) * 0.55
+            });
+        }
+
+        // 6. 호스트 푸른 모자이크 2D 캔버스
+        const mosaicCanvas = document.getElementById('mosaic-canvas');
+        const mosaicCtx = mosaicCanvas.getContext('2d');
+        const MOSAIC_PALETTE = ['#051d4d', '#08348a', '#0c46b8', '#145ee8', '#062666', '#104ec9'];
+        let mosaicTiles = [];
+        let mosaicTileSize = 36;
+
+        function initMosaicGrid() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            mosaicCanvas.width = w;
+            mosaicCanvas.height = h;
+            mosaicCanvas.style.display = 'block';
+            mosaicCtx.clearRect(0, 0, w, h);
+
+            mosaicTileSize = Math.max(26, Math.round(Math.min(w, h) / 22));
+            const cols = Math.ceil(w / mosaicTileSize);
+            const rows = Math.ceil(h / mosaicTileSize);
+            mosaicTiles = [];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    mosaicTiles.push({
+                        x: c * mosaicTileSize,
+                        y: r * mosaicTileSize,
+                        color: MOSAIC_PALETTE[Math.floor(Math.random() * MOSAIC_PALETTE.length)],
+                        threshold: Math.random() * 0.78
+                    });
+                }
+            }
+        }
+
+        function drawMosaicFrame(p) {
+            const w = mosaicCanvas.width;
+            const h = mosaicCanvas.height;
+            mosaicCtx.clearRect(0, 0, w, h);
+
+            for (let i = 0; i < mosaicTiles.length; i++) {
+                const tile = mosaicTiles[i];
+                if (p >= tile.threshold) {
+                    if (p > 0.8) {
+                        const settleP = (p - 0.8) / 0.2;
+                        mosaicCtx.fillStyle = (Math.random() < settleP) ? '#08348a' : tile.color;
+                    } else {
+                        if (Math.random() < 0.14) {
+                            tile.color = MOSAIC_PALETTE[Math.floor(Math.random() * MOSAIC_PALETTE.length)];
+                        }
+                        mosaicCtx.fillStyle = tile.color;
+                    }
+                    mosaicCtx.fillRect(tile.x, tile.y, mosaicTileSize + 1, mosaicTileSize + 1);
+                }
+            }
+        }
+
+        // 7. 후처리(Post-Processing)
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+
+        const PostProcessShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                uTime: { value: 0 },
+                uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                uBgColor: { value: MAIN_BG_COLOR.clone() },
+                uAnaglyph: { value: 0.0 },
+                uFlashWhite: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float uTime;
+                uniform vec2 uResolution;
+                uniform vec3 uBgColor;
+                uniform float uAnaglyph;
+                uniform float uFlashWhite;
+                varying vec2 vUv;
+
+                void main() {
+                    vec2 center = vUv - 0.5;
+                    float dist = length(center);
+
+                    vec2 dir = normalize(center + 0.0001);
+                    vec2 slantDir = normalize(dir + vec2(0.6, -0.4));
+                    
+                    float aberrationAmount = (0.0008 + pow(dist, 1.8) * 0.0055);
+                    vec2 anaglyphShift = vec2(uAnaglyph * 0.017, 0.0);
+
+                    vec2 offsetR = slantDir * aberrationAmount * 1.1 - anaglyphShift;
+                    vec2 offsetG = slantDir * aberrationAmount * 0.1 + anaglyphShift * 0.9;
+                    vec2 offsetB = -slantDir * aberrationAmount * 1.1 + anaglyphShift;
+
+                    float r = texture2D(tDiffuse, vUv + offsetR).r;
+                    float g = texture2D(tDiffuse, vUv + offsetG).g;
+                    float b = texture2D(tDiffuse, vUv + offsetB).b;
+
+                    vec3 finalColor = vec3(r, g, b);
+                    
+                    float edge = abs(r - b) + abs(r - g);
+                    finalColor += vec3(r * 0.25, g * 0.2, b * 0.32) * smoothstep(0.12, 0.65, edge) * 0.5;
+
+                    if (uAnaglyph > 0.001) {
+                        vec3 redChannel = vec3(r * 1.45, 0.0, 0.0);
+                        vec3 cyanChannel = vec3(0.0, g * 1.2, b * 1.45);
+                        vec3 vividAnaglyph = redChannel + cyanChannel;
+                        finalColor = mix(finalColor, vividAnaglyph, clamp(uAnaglyph * 0.95, 0.0, 1.0));
+                    }
+
+                    finalColor = pow(finalColor, vec3(1.02)) * 1.1;
+
+                    vec3 composited = clamp(uBgColor + finalColor, 0.0, 1.0);
+                    composited = mix(composited, vec3(1.0), clamp(uFlashWhite, 0.0, 1.0));
+
+                    gl_FragColor = vec4(composited, 1.0);
+                }
+            `
+        };
+
+        const postPass = new ShaderPass(PostProcessShader);
+        composer.addPass(postPass);
+
+        // 8. HUD 텍스트 스크램블 애니메이션 & 렌더링
+        const hudOverlay = document.getElementById('hud-overlay');
+        let scrambleTimers = [];
+
+        function clearScrambleTimers() {
+            scrambleTimers.forEach(id => clearInterval(id));
+            scrambleTimers = [];
+        }
+
+        function scrambleReveal(el, finalText, duration = 650, delay = 0) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/#*+';
+            el.textContent = '';
+            const startAt = performance.now() + delay;
+
+            const timer = setInterval(() => {
+                const now = performance.now();
+                if (now < startAt) return;
+                const progress = Math.min(1, (now - startAt) / duration);
+                const revealedCount = Math.floor(progress * finalText.length);
+
+                let out = '';
+                for (let i = 0; i < finalText.length; i++) {
+                    const ch = finalText[i];
+                    if (i < revealedCount || ch === ' ' || ch === '\n') {
+                        out += ch;
+                    } else {
+                        out += chars[Math.floor(Math.random() * chars.length)];
+                    }
+                }
+                el.textContent = out;
+
+                if (progress >= 1) {
+                    el.textContent = finalText;
+                    clearInterval(timer);
+                }
+            }, 30);
+            scrambleTimers.push(timer);
+        }
+
+        function showCharacterHUD(charKey) {
+            clearScrambleTimers();
+            const data = CHARACTER_DATA[charKey];
+            hudOverlay.className = data.theme;
+
+            hudOverlay.innerHTML = `
+                <div class="hud-container">
+                    <div class="hud-col">
+                        <div class="hud-header-block">
+                            <div class="hud-title-row">
+                                <span data-scramble>${data.headerTitle}</span>
+                                <span class="hud-badge" data-scramble>${data.badge}</span>
+                            </div>
+                            <div class="hud-scan-line"></div>
+                            <div class="hud-subtitle" data-scramble>${data.subtitle}</div>
+                        </div>
+
+                        <div class="hud-panel">
+                            <div class="hud-section-label" data-scramble>${data.leftLabel}</div>
+                            <div class="hud-kv-list">
+                                ${data.fields.map(f => `
+                                    <div class="hud-kv-row">
+                                        <div class="hud-key" data-scramble>${f.key}</div>
+                                        <div class="hud-val ${f.highlight ? 'highlight-badge' : ''}" data-scramble>${f.val}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hud-col">
+                        <div class="hud-header-block">
+                            <div class="hud-title-row">
+                                <span data-scramble>${data.rightLabel}</span>
+                            </div>
+                            <div class="hud-scan-line"></div>
+                            <div class="hud-subtitle" data-scramble>${data.subRightLabel}</div>
+                        </div>
+
+                        <div class="hud-panel">
+                            <div class="hud-section-label" data-scramble>특이사항 // SPECIAL NOTES</div>
+                            <div class="hud-notes-list">
+                                ${data.notes.map(note => `
+                                    <div class="hud-note-item" data-scramble>${note}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="hud-footer-meta">
+                            <span data-scramble>${data.footerLeft}</span>
+                            <span data-scramble>${data.footerRight}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            requestAnimationFrame(() => {
+                hudOverlay.classList.add('active');
+                const targets = hudOverlay.querySelectorAll('[data-scramble]');
+                targets.forEach((el, idx) => {
+                    const txt = el.textContent;
+                    scrambleReveal(el, txt, 550 + Math.min(450, txt.length * 10), idx * 45);
+                });
+            });
+        }
+
+        // 9. 상태 머신 및 인터랙션
+        let seqState = 'NORMAL';
+        let seqStartTime = 0;
+        let isOrbActive = true;
+        let activeCharKey = null;
+        let hudEnteredTime = 0;
+
+        let chosenClone = null;
+        let focusTargetPos = new THREE.Vector3();
+
+        const commandWrapper = document.getElementById('command-wrapper');
+        const commandInput = document.getElementById('command-input');
+        const genesisText = document.getElementById('genesis-text');
+
+        ['pointerdown', 'mousedown', 'click'].forEach(evt => {
+            commandWrapper.addEventListener(evt, (e) => e.stopPropagation());
+        });
+
+        function triggerGodSequence() {
+            if (seqState !== 'NORMAL') return;
+            seqState = 'SHRINKING';
+            seqStartTime = clock.getElapsedTime();
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+        }
+
+        function triggerCharSequence(charKey) {
+            if (seqState !== 'NORMAL') return;
+            activeCharKey = charKey;
+            seqState = 'CHAR_ORB_EXIT';
+            seqStartTime = clock.getElapsedTime();
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+        }
+
+        function triggerDarekaSequence() {
+            if (seqState !== 'NORMAL') return;
+            activeCharKey = 'dareka';
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+
+            buildDarekaGrid();
+            darekaGroup.position.set(0, 0, 0);
+            scene.add(darekaGroup);
+
+            seqState = 'DAREKA_MULTIPLY';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function handleCommandValue(raw) {
+            const rawTrim = raw.trim();
+            const val = rawTrim.toUpperCase();
+            if (val === 'GOD') {
+                triggerGodSequence();
+            } else if (val === 'WHO' || rawTrim === '누구지') {
+                triggerCharSequence('who');
+            } else if (val === 'HOST' || rawTrim === '호스트') {
+                triggerCharSequence('host');
+            } else if (rawTrim === '다레카' || rawTrim === 'だれか') {
+                triggerDarekaSequence();
+            }
+        }
+
+        commandInput.addEventListener('input', (e) => handleCommandValue(e.target.value));
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleCommandValue(e.target.value);
+        });
+
+        function closeCharacterEvent() {
+            if (seqState !== 'CHAR_HUD') return;
+            if (clock.getElapsedTime() - hudEnteredTime < 0.45) return;
+
+            clearScrambleTimers();
+            hudOverlay.classList.remove('active');
+
+            camera.position.set(0, 0, CAMERA_DEFAULT_Z);
+            scene.add(masterGroup);
+            masterGroup.position.set(0, ORB_CENTER_Y, 0);
+            masterGroup.scale.setScalar(0.001);
+            isOrbActive = true;
+
+            seqState = 'CHAR_RESTORING';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        hudOverlay.addEventListener('click', closeCharacterEvent);
+
+        const mouseNDC = new THREE.Vector2(999, 999);
+        const raycaster = new THREE.Raycaster();
+        const interactPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const worldMousePos = new THREE.Vector3(999, 999, 0);
+        const localMousePos = new THREE.Vector3(999, 999, 0);
+        let isMouseInside = false;
+
+        let isDragging = false;
+        let prevPointer = { x: 0, y: 0 };
+        let rotVelocity = { x: 0, y: 0 };
+
+        const qYaw = new THREE.Quaternion();
+        const qPitch = new THREE.Quaternion();
+        const axisY = new THREE.Vector3(0, 1, 0);
+        const axisX = new THREE.Vector3(1, 0, 0);
+
+        window.addEventListener('pointerdown', (e) => {
+            if (seqState === 'CHAR_HUD') {
+                closeCharacterEvent();
+                return;
+            }
+            if (seqState !== 'NORMAL') return;
+            isDragging = true;
+            prevPointer.x = e.clientX;
+            prevPointer.y = e.clientY;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            isMouseInside = true;
+            mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            if (isDragging && seqState === 'NORMAL') {
+                const dx = e.clientX - prevPointer.x;
+                const dy = e.clientY - prevPointer.y;
+
+                rotVelocity.y = dx * 0.0055;
+                rotVelocity.x = dy * 0.0055;
+
+                prevPointer.x = e.clientX;
+                prevPointer.y = e.clientY;
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            isDragging = false;
+        });
+
+        window.addEventListener('pointerleave', () => {
+            isDragging = false;
+            isMouseInside = false;
+        });
+
+        // 10. 동적 애니메이션 루프
+        const clock = new THREE.Clock();
+        const tempVec = new THREE.Vector3();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+            let currentAnaglyph = 0.0;
+            let currentFlashWhite = 0.0;
+
+            // --- GOD 시퀀스 ---
+            if (seqState === 'SHRINKING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.65;
+                const p = Math.min(1.0, dt / duration);
+                const scale = Math.max(0.001, Math.pow(1.0 - p, 2.5));
+                masterGroup.scale.setScalar(scale);
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    scene.add(sixSpheresGroup);
+                    sixSpheresGroup.scale.setScalar(1.0);
+                    whiteSphereMat.uniforms.uOpacity.value = 1.0;
+                    seqState = 'GATHERING';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'GATHERING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.85;
+                const p = Math.min(1.0, dt / duration);
+                const ease = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                sixSpheres.forEach((s) => {
+                    const r = s.startRadius * (1.0 - ease);
+                    const angle = s.startAngle + p * Math.PI * 3.2;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r * Math.cos(s.orbitTilt);
+                    const z = Math.sin(angle) * r * Math.sin(s.orbitTilt) + s.startZ * (1.0 - ease);
+
+                    s.container.position.set(x, y, z);
+                    s.container.scale.setScalar(0.85 + ease * 0.25);
+                    s.haloMat.opacity = 0.72;
+                });
+
+                if (p >= 1.0) {
+                    seqState = 'TREMBLING';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'TREMBLING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 3.40;
+                const p = Math.min(1.0, dt / duration);
+                const shakeAmp = (0.025 + p * 0.1) * 1.5;
+                const slowExpand = 1.0 + Math.pow(p, 1.4) * 0.425;
+
+                sixSpheres.forEach((s, idx) => {
+                    s.container.position.set(
+                        Math.sin(elapsedTime * 85.0 + idx * 1.7) * shakeAmp,
+                        Math.cos(elapsedTime * 92.0 + idx * 2.3) * shakeAmp,
+                        Math.sin(elapsedTime * 78.0 + idx * 3.1) * shakeAmp
+                    );
+                    s.container.scale.setScalar(slowExpand);
+                });
+                currentAnaglyph = p * 0.65;
+
+                if (p >= 1.0) {
+                    seqState = 'EXPLODING';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'EXPLODING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.28;
+                const p = Math.min(1.0, dt / duration);
+                const expEase = Math.pow(p, 1.6);
+
+                sixSpheres.forEach((s) => {
+                    const spread = expEase * 4.5;
+                    s.container.position.set(
+                        Math.cos(s.startAngle) * spread * 0.4,
+                        Math.sin(s.startAngle) * spread * 0.4,
+                        expEase * 2.4
+                    );
+                    s.container.scale.setScalar(1.425 + expEase * 32.0);
+                    s.haloMat.opacity = 0.92;
+                });
+
+                currentAnaglyph = Math.sin(p * Math.PI) * 1.35;
+                currentFlashWhite = THREE.MathUtils.smoothstep(p, 0.22, 0.9);
+
+                if (p >= 1.0) {
+                    scene.remove(sixSpheresGroup);
+                    seqState = 'LIGHT_TEXT';
+                    seqStartTime = elapsedTime;
+                    genesisText.classList.add('visible');
+                }
+            } else if (seqState === 'LIGHT_TEXT') {
+                currentFlashWhite = 1.0;
+                const dt = elapsedTime - seqStartTime;
+                if (dt >= 3.0) {
+                    genesisText.classList.remove('visible');
+                    scene.add(masterGroup);
+                    masterGroup.position.set(0, ORB_CENTER_Y, 0);
+                    masterGroup.scale.setScalar(0.001);
+                    isOrbActive = true;
+                    seqState = 'RESTORING';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'RESTORING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                currentFlashWhite = 1.0 - easeOut;
+                masterGroup.scale.setScalar(Math.max(0.001, easeOut));
+
+                if (p >= 1.0) {
+                    masterGroup.scale.setScalar(1.0);
+                    seqState = 'NORMAL';
+                    commandInput.value = '';
+                    commandWrapper.classList.remove('hidden');
+                }
+            }
+
+            // --- 다레카 시퀀스 ---
+            else if (seqState === 'DAREKA_MULTIPLY') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.55;
+                const p = Math.min(1.0, dt / duration);
+                const ease = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                masterGroup.scale.setScalar(1.0 - ease * 0.74);
+
+                darekaClones.forEach((c) => {
+                    c.group.position.lerpVectors(c.startPos, c.gridPos, ease);
+                    c.group.scale.setScalar(0.85 - ease * 0.59);
+                });
+
+                if (p >= 1.0) {
+                    const candidates = darekaClones.filter(c => c.canFocus);
+                    chosenClone = candidates[Math.floor(Math.random() * candidates.length)] || darekaClones[0];
+                    // 포커스 대상은 원본과 100% 동일한 초고해상도 쉘 지오메트리 적용
+                    chosenClone.shell.geometry = coreShellGeo;
+                    focusTargetPos.copy(chosenClone.gridPos);
+
+                    seqState = 'DAREKA_CAMERA_PAN';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'DAREKA_CAMERA_PAN') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+                camera.position.x = THREE.MathUtils.lerp(0, focusTargetPos.x, ease);
+                camera.position.y = THREE.MathUtils.lerp(0, focusTargetPos.y, ease);
+                camera.position.z = CAMERA_DEFAULT_Z;
+
+                if (p >= 1.0) {
+                    seqState = 'DAREKA_CAMERA_ZOOM';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'DAREKA_CAMERA_ZOOM') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+                camera.position.z = THREE.MathUtils.lerp(CAMERA_DEFAULT_Z, CAMERA_DEFAULT_Z * 0.26, ease);
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    darekaClones.forEach((c) => {
+                        c.group.visible = (c === chosenClone);
+                    });
+
+                    seqState = 'DAREKA_ORB_EXIT';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'DAREKA_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.72;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.2);
+
+                chosenClone.group.scale.setScalar(Math.max(0.015, 0.26 * (1.0 - easeIn * 0.94)));
+                chosenClone.group.position.y = focusTargetPos.y + easeIn * 2.4;
+
+                if (p >= 1.0) {
+                    scene.remove(darekaGroup);
+                    camera.position.set(0, 0, CAMERA_DEFAULT_Z);
+                    seqState = 'CHAR_HUD';
+                    hudEnteredTime = elapsedTime;
+                    showCharacterHUD('dareka');
+                }
+            }
+
+            // --- 캐릭터 공통 퇴장 & 호스트 푸른 모자이크 & 복구 ---
+            else if (seqState === 'CHAR_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.72;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.2);
+
+                masterGroup.scale.setScalar(Math.max(0.06, 1.0 - easeIn * 0.92));
+                masterGroup.position.y = ORB_CENTER_Y + easeIn * 7.2;
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    if (activeCharKey === 'host') {
+                        initMosaicGrid();
+                        seqState = 'HOST_BLUE_MOSAIC';
+                        seqStartTime = elapsedTime;
+                    } else {
+                        seqState = 'CHAR_HUD';
+                        hudEnteredTime = elapsedTime;
+                        showCharacterHUD(activeCharKey);
+                    }
+                }
+            } else if (seqState === 'HOST_BLUE_MOSAIC') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.35;
+                const p = Math.min(1.0, dt / duration);
+
+                drawMosaicFrame(p);
+                currentBgVec.lerpVectors(MAIN_BG_COLOR, HOST_BLUE_COLOR, Math.min(1.0, p * 1.15));
+
+                if (p >= 1.0) {
+                    currentBgVec.copy(HOST_BLUE_COLOR);
+                    document.body.style.backgroundColor = '#08348a';
+                    mosaicCanvas.style.display = 'none';
+                    seqState = 'CHAR_HUD';
+                    hudEnteredTime = elapsedTime;
+                    showCharacterHUD('host');
+                }
+            } else if (seqState === 'CHAR_RESTORING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.75;
+                const p = Math.min(1.0, dt / duration);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                if (activeCharKey === 'host') {
+                    currentBgVec.lerpVectors(HOST_BLUE_COLOR, MAIN_BG_COLOR, easeOut);
+                }
+                masterGroup.scale.setScalar(Math.max(0.001, easeOut));
+
+                if (p >= 1.0) {
+                    currentBgVec.copy(MAIN_BG_COLOR);
+                    document.body.style.backgroundColor = '#1c1c1c';
+                    masterGroup.scale.setScalar(1.0);
+                    activeCharKey = null;
+                    seqState = 'NORMAL';
+                    commandInput.value = '';
+                    commandWrapper.classList.remove('hidden');
+                }
+            }
+
+            coreShellMat.uniforms.uTime.value = elapsedTime;
+
+            // --- 오브 활성 상태 연산 ---
+            if (isOrbActive) {
+                if (Math.abs(rotVelocity.x) > 0.00001 || Math.abs(rotVelocity.y) > 0.00001) {
+                    qYaw.setFromAxisAngle(axisY, rotVelocity.y);
+                    qPitch.setFromAxisAngle(axisX, rotVelocity.x);
+                    masterGroup.quaternion.premultiply(qYaw);
+                    masterGroup.quaternion.premultiply(qPitch);
+                    masterGroup.quaternion.normalize();
+                }
+
+                if (!isDragging) {
+                    rotVelocity.x *= 0.94;
+                    rotVelocity.y *= 0.94;
+
+                    if (isMouseInside && seqState === 'NORMAL') {
+                        const hoverTiltY = mouseNDC.x * 0.0005;
+                        const hoverTiltX = -mouseNDC.y * 0.0005;
+                        qYaw.setFromAxisAngle(axisY, hoverTiltY);
+                        qPitch.setFromAxisAngle(axisX, hoverTiltX);
+                        masterGroup.quaternion.premultiply(qYaw);
+                        masterGroup.quaternion.premultiply(qPitch);
+                    }
+                }
+
+                masterGroup.updateMatrixWorld();
+
+                if (isMouseInside && seqState === 'NORMAL') {
+                    raycaster.setFromCamera(mouseNDC, camera);
+                    raycaster.ray.intersectPlane(interactPlane, worldMousePos);
+                    localMousePos.copy(worldMousePos);
+                    masterGroup.worldToLocal(localMousePos);
+                } else {
+                    localMousePos.set(999, 999, 999);
+                }
+
+                orbitConfigs.forEach((cfg, idx) => {
+                    cfg.group.rotation.x = cfg.baseRot.x + elapsedTime * cfg.rotSpeed.x + Math.sin(elapsedTime * cfg.wobbleFreq + idx) * cfg.wobbleAmp;
+                    cfg.group.rotation.y = cfg.baseRot.y + elapsedTime * cfg.rotSpeed.y + Math.cos(elapsedTime * cfg.wobbleFreq + idx) * cfg.wobbleAmp;
+                    cfg.group.rotation.z = cfg.baseRot.z + elapsedTime * cfg.rotSpeed.z;
+
+                    const breathe = 1.0 + Math.sin(elapsedTime * 1.1 + idx * 2.0) * 0.04;
+                    cfg.group.scale.setScalar(breathe);
+                    cfg.group.updateMatrix();
+                });
+
+                for (let i = 0; i < 3; i++) {
+                    const cfg = orbitConfigs[i];
+                    const angle = elapsedTime * cfg.speed + cfg.phase;
+                    targetPoints[i].set(
+                        Math.cos(angle) * cfg.rx,
+                        Math.sin(angle) * cfg.ry,
+                        0
+                    ).applyMatrix4(cfg.group.matrix);
+                }
+
+                const cfg0 = orbitConfigs[0];
+                const angle4 = elapsedTime * (cfg0.speed * 0.9) + cfg0.phase + Math.PI * 0.85;
+                targetPoints[3].set(
+                    Math.cos(angle4) * cfg0.rx,
+                    Math.sin(angle4) * cfg0.ry,
+                    0
+                ).applyMatrix4(cfg0.group.matrix);
+
+                for (let i = 0; i < OUTER_COUNT; i++) {
+                    const n = outerNodes[i];
+                    const currentTheta = n.baseTheta + elapsedTime * n.speedTheta + Math.sin(elapsedTime * 0.4 + n.phase) * 0.35;
+                    const currentPhi = n.basePhi + elapsedTime * n.speedPhi + Math.cos(elapsedTime * 0.35 + n.phase) * 0.35;
+                    const currentRadius = n.baseRadius + Math.sin(elapsedTime * n.radialFreq + n.phase) * n.radialAmp;
+
+                    n.pos.set(
+                        currentRadius * Math.sin(currentPhi) * Math.cos(currentTheta),
+                        currentRadius * Math.sin(currentPhi) * Math.sin(currentTheta),
+                        currentRadius * Math.cos(currentPhi)
+                    );
+
+                    let mouseEnergy = 0;
+                    if (isMouseInside && seqState === 'NORMAL') {
+                        tempVec.copy(n.pos).sub(localMousePos);
+                        const distToMouse = tempVec.length();
+                        const influenceRadius = 1.75;
+                        if (distToMouse < influenceRadius && distToMouse > 0.001) {
+                            const force = Math.pow(1.0 - distToMouse / influenceRadius, 1.8);
+                            n.pos.addScaledVector(tempVec.normalize(), force * 0.45);
+                            mouseEnergy = force * 1.4;
+                        }
+                    }
+
+                    n.energy = mouseEnergy;
+
+                    outerPositions[i * 3] = n.pos.x;
+                    outerPositions[i * 3 + 1] = n.pos.y;
+                    outerPositions[i * 3 + 2] = n.pos.z;
+                    outerEnergies[i] = n.energy;
+                }
+
+                outerGeo.attributes.position.needsUpdate = true;
+                outerGeo.attributes.aEnergy.needsUpdate = true;
+
+                let vertexIndex = 0;
+                const pushLine = (pA, pB, cA, cB) => {
+                    if (vertexIndex + 2 >= MAX_LINES * 2) return;
+                    linePositions[vertexIndex * 3] = pA.x;
+                    linePositions[vertexIndex * 3 + 1] = pA.y;
+                    linePositions[vertexIndex * 3 + 2] = pA.z;
+                    lineColors[vertexIndex * 3] = cA;
+                    lineColors[vertexIndex * 3 + 1] = cA;
+                    lineColors[vertexIndex * 3 + 2] = cA;
+                    vertexIndex++;
+
+                    linePositions[vertexIndex * 3] = pB.x;
+                    linePositions[vertexIndex * 3 + 1] = pB.y;
+                    linePositions[vertexIndex * 3 + 2] = pB.z;
+                    lineColors[vertexIndex * 3] = cB;
+                    lineColors[vertexIndex * 3 + 1] = cB;
+                    lineColors[vertexIndex * 3 + 2] = cB;
+                    vertexIndex++;
+                };
+
+                const maxOuterDist = 1.28;
+                const maxSpikeDist = 1.38;
+
+                for (let i = 0; i < OUTER_COUNT; i++) {
+                    const nA = outerNodes[i];
+
+                    for (let j = i + 1; j < OUTER_COUNT; j++) {
+                        const nB = outerNodes[j];
+                        const dist = nA.pos.distanceTo(nB.pos);
+                        if (dist < maxOuterDist) {
+                            const base = Math.pow(1.0 - dist / maxOuterDist, 1.5) * 0.5;
+                            const intA = Math.min(1.0, base + nA.energy * 0.3);
+                            const intB = Math.min(1.0, base + nB.energy * 0.3);
+                            pushLine(nA.pos, nB.pos, intA, intB);
+                        }
+                    }
+
+                    for (let k = 0; k < 4; k++) {
+                        const spikePos = targetPoints[k];
+                        const distToSpike = nA.pos.distanceTo(spikePos);
+                        if (distToSpike < maxSpikeDist) {
+                            const intensity = Math.min(1.0, Math.pow(1.0 - distToSpike / maxSpikeDist, 1.4) * 0.72);
+                            tempVec.copy(spikePos).multiplyScalar(0.95);
+                            pushLine(nA.pos, tempVec, intensity, intensity * 1.1);
+                        }
+                    }
+
+                    const distToCenter = nA.pos.length();
+                    if (distToCenter < 1.9) {
+                        const intensity = Math.min(1.0, Math.pow(1.0 - Math.max(0, distToCenter - 1.25) / 0.65, 1.6) * 0.45);
+                        tempVec.copy(nA.pos).normalize().multiplyScalar(1.22);
+                        pushLine(nA.pos, tempVec, intensity, intensity * 0.35);
+                    }
+                }
+
+                linesGeo.setDrawRange(0, vertexIndex);
+                linesGeo.attributes.position.needsUpdate = true;
+                linesGeo.attributes.color.needsUpdate = true;
+
+                coreShellMat.uniforms.uLocalMouse.value.copy(localMousePos);
+                coreShellMat.uniforms.uMouseActive.value = (isMouseInside && seqState === 'NORMAL') ? 1.0 : 0.0;
+            }
+
+            // 후처리 셰이더의 배경 컬러 유니폼을 매 프레임 명시적으로 동기화
+            postPass.uniforms.uBgColor.value.copy(currentBgVec);
+            postPass.uniforms.uTime.value = elapsedTime;
+            postPass.uniforms.uAnaglyph.value = currentAnaglyph;
+            postPass.uniforms.uFlashWhite.value = currentFlashWhite;
+
+            composer.render();
+        }
+
+        // 11. 창 크기 조절 대응
+        window.addEventListener('resize', () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const dpr = Math.min(window.devicePixelRatio, 2);
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(dpr);
+            coreShellMat.uniforms.uPixelRatio.value = dpr;
+
+            composer.setSize(width, height);
+            postPass.uniforms.uResolution.value.set(width, height);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
