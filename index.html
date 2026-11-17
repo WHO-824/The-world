@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -31,6 +32,14 @@
         }
         canvas#webgl-canvas:active {
             cursor: grabbing;
+        }
+        body.history-mode canvas#webgl-canvas,
+        body.history-mode canvas#webgl-canvas:active {
+            cursor: default;
+        }
+        body.history-mode.history-hover canvas#webgl-canvas,
+        body.history-mode.history-hover canvas#webgl-canvas:active {
+            cursor: pointer;
         }
 
         /* 호스트 푸른 모자이크 전환용 캔버스 */
@@ -323,6 +332,293 @@
             border-top: 1px solid rgba(255, 255, 255, 0.16);
             padding-top: 8px;
         }
+
+        /* === [역사 / HISTORY] UI === */
+        #history-ui {
+            position: fixed;
+            inset: 0;
+            z-index: 22;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        #history-ui.active {
+            opacity: 1;
+        }
+
+        .history-topbar {
+            position: fixed;
+            top: 28px;
+            left: 34px;
+            right: 34px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .history-title-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .history-main-title {
+            font-family: 'Rajdhani', 'Pretendard', sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.22em;
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+        }
+        .history-sub-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.42);
+        }
+        .history-hint {
+            margin-top: 2px;
+            font-family: 'IBM Plex Mono', 'Pretendard', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            color: rgba(255, 255, 255, 0.34);
+        }
+
+        #history-return-btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            color: rgba(255, 255, 255, 0.82);
+            padding: 6px 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        #history-return-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.85);
+            color: #ffffff;
+        }
+
+        /* 5개 밀집 지점 위/아래에 정렬되는 미니 마커 */
+        #history-markers {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+        }
+        .history-marker {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            cursor: pointer;
+            width: 56px;
+            height: 76px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .history-marker-tag {
+            font-family: 'Pretendard', 'IBM Plex Mono', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.94);
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(-14px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+            pointer-events: none;
+        }
+        .history-marker.hovered .history-marker-tag,
+        .history-marker.selected .history-marker-tag {
+            opacity: 1;
+            transform: translateY(-20px);
+        }
+
+        .history-marker-index {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            color: rgba(255, 255, 255, 0.28);
+            transform: translateY(18px);
+            transition: color 0.25s ease, transform 0.25s ease, text-shadow 0.25s ease;
+            pointer-events: none;
+        }
+        .history-marker.visited .history-marker-index {
+            color: rgba(255, 255, 255, 0.56);
+        }
+        .history-marker.hovered .history-marker-index,
+        .history-marker.selected .history-marker-index {
+            color: #ffffff;
+            transform: translateY(22px);
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+        .history-marker.next-cue .history-marker-index {
+            color: rgba(255, 255, 255, 0.68);
+        }
+
+        /* 하단 역사 텍스트 출력 패널 */
+        #history-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translate(-50%, 14px);
+            width: min(760px, calc(100vw - 36px));
+            padding: 18px 24px 16px;
+            background: rgba(16, 16, 19, 0.76);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.38s ease, transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #history-panel.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+            pointer-events: auto;
+        }
+        #history-panel::before,
+        #history-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.45);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+        }
+        #history-panel::before {
+            left: 0;
+            border-left: 1px solid rgba(255, 255, 255, 0.45);
+        }
+        #history-panel::after {
+            right: 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.45);
+        }
+
+        .history-panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+        }
+        .history-panel-titles {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .history-era-code {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.55);
+        }
+        .history-era-name {
+            font-family: 'Pretendard', sans-serif;
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: #ffffff;
+        }
+        .history-era-sub {
+            font-family: 'Cinzel', 'IBM Plex Mono', serif;
+            font-size: 11px;
+            letter-spacing: 0.14em;
+            color: rgba(255, 255, 255, 0.45);
+            text-transform: uppercase;
+        }
+
+        .history-panel-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-nav-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: rgba(255, 255, 255, 0.78);
+            width: 26px;
+            height: 24px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+        .history-nav-btn:hover:not(:disabled) {
+            border-color: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        .history-nav-btn:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .history-panel-body {
+            margin-top: 13px;
+            max-height: calc(36vh - 64px);
+            overflow-y: auto;
+            padding-right: 6px;
+            font-size: 13.8px;
+            line-height: 1.86;
+            letter-spacing: 0.015em;
+            color: rgba(238, 241, 246, 0.9);
+            word-break: keep-all;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .history-panel-body::-webkit-scrollbar {
+            width: 3px;
+        }
+        .history-panel-body::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .history-panel-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.28);
+        }
+        .history-lead-word {
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .history-text-fade {
+            animation: historyTextReveal 0.45s ease forwards;
+        }
+        @keyframes historyTextReveal {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 760px) {
+            .history-topbar {
+                top: 18px;
+                left: 18px;
+                right: 18px;
+            }
+            #history-panel {
+                bottom: 18px;
+                padding: 14px 16px 12px;
+            }
+            .history-panel-body {
+                font-size: 13px;
+                line-height: 1.76;
+                max-height: 36vh;
+            }
+        }
     </style>
     <script type="importmap">
         {
@@ -341,6 +637,34 @@
     <div id="genesis-text">And God said, Let there be light: and there was light.</div>
     <div id="hud-overlay"></div>
 
+    <!-- [역사/HISTORY] 이벤트 UI -->
+    <div id="history-ui">
+        <div class="history-topbar">
+            <div class="history-title-wrap">
+                <div class="history-main-title">ARCHIVE // HISTORY</div>
+                <div class="history-sub-title">CHRONOLOGICAL FILAMENT // SELECT NODES LEFT TO RIGHT</div>
+                <div class="history-hint">원형 밀집 지점에 마우스를 올리거나 점을 클릭하여 기록을 확인하십시오</div>
+            </div>
+            <button id="history-return-btn" type="button">RETURN [ESC]</button>
+        </div>
+        <div id="history-markers"></div>
+        <div id="history-panel">
+            <div class="history-panel-head">
+                <div class="history-panel-titles">
+                    <span class="history-era-code" id="history-era-code">01 / 05</span>
+                    <span class="history-era-name" id="history-era-name"></span>
+                    <span class="history-era-sub" id="history-era-sub"></span>
+                </div>
+                <div class="history-panel-controls">
+                    <button class="history-nav-btn" id="history-prev-btn" type="button" title="이전 기록">&lt;</button>
+                    <button class="history-nav-btn" id="history-next-btn" type="button" title="다음 기록">&gt;</button>
+                    <button class="history-nav-btn" id="history-close-panel-btn" type="button" title="닫기">×</button>
+                </div>
+            </div>
+            <div class="history-panel-body" id="history-panel-body"></div>
+        </div>
+    </div>
+
     <script type="module">
         import * as THREE from 'three';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -350,9 +674,49 @@
         // 컬러 상수
         const MAIN_BG_COLOR = new THREE.Vector3(28 / 255, 28 / 255, 28 / 255);
         const HOST_BLUE_COLOR = new THREE.Vector3(8 / 255, 52 / 255, 138 / 255);
+        const HISTORY_BG_COLOR = new THREE.Vector3(19 / 255, 19 / 255, 22 / 255);
         const currentBgVec = MAIN_BG_COLOR.clone();
         const ORB_CENTER_Y = 0.32;
         const CAMERA_DEFAULT_Z = 7.0;
+
+        // 역사 데이터 (좌측 -> 우측 순)
+        const HISTORY_DATA = [
+            {
+                code: '01',
+                title: '태초',
+                subtitle: 'THE FALSE VACUUM',
+                lead: '태초.',
+                text: "태초에 완벽이 있었다. 더할 것도 뺄 것도 없이 스스로 충만하여 맥동조차 필요 없던 고요의 요람, 감히 '세계(The World)'라 불리던 자리. 그러나 영원할 것 같던 완전함은 위태로운 허진공(False Vacuum) 위에 세워진 신기루였다. 무엇이 최초의 균열을 냈는지는 기록되지 않았다. 다만 한 치의 오차도 없던 평면이 스스로의 무게를 견디지 못하고 가장 낮은 바닥인 진진공(True Vacuum)을 향해 무너져 내렸을 뿐이다."
+            },
+            {
+                code: '02',
+                title: '빅뱅',
+                subtitle: 'CONCEPTUAL SINGULARITY',
+                lead: '빅뱅.',
+                text: "실존을 지탱하던 순수한 '개념’의 망라는 찢어지는 불충만의 고통에 몸부림쳤다. 빠져나가는 온전함을 붙잡기 위해, 벌어지는 상처를 꿰매기 위해, 개념은 자신의 모든 존재를 쥐어짜 허공에 단 하나의 극단적인 점을 찍었다. 빛이 있으라. 점이 터져 나가며 개념은 산산이 부서져 죽었고, 그 거대한 장례식의 파편 속에서 물질의 우주와 불완전한 신들이 태어났다."
+            },
+            {
+                code: '03',
+                title: '초기 우주',
+                subtitle: 'THE FALLEN PANTHEON & EARTH',
+                lead: '초기 우주.',
+                text: "죽은 개념의 유해에서 태어난 신들은 태생부터 불구였다. 그들은 한 번도 겪어보지 못한 태초의 찬란함을 유전된 환상통처럼 기억했고, 가슴 한가운데 뚫린 영원한 결핍을 채우기 위해 발악했다. 어떤 신들은 서로의 결핍을 맞대고 엉겨 붙어 의회를 세웠고, 어떤 신들은 끝없이 팽창하는 차가운 어둠 속을 홀로 배회하며 텅 빈 아가리를 벌렸다. 그리고 끝내 결핍의 무게를 견디지 못해 이성이 붕괴한 신들이 있었다. 우주는 미쳐버린 신을 '악마’라 불렀다. 스스로의 굶주림을 게워내다 아사한 악마의 주검은 우주의 중력에 붙들려 서서히 식어갔다. 굳어진 살점은 지각이 되고, 고인 피와 진물은 바다가 되었으며, 미처 흩어지지 못한 원념은 대기가 되어 구체를 감쌌다. 행성이란 곧 부패해 가는 악마의 시체였다. 태양이라 불리는 거대한 화로로부터 세 번째 궤도를 도는 푸른 시체. 흙과 물로 빚어진 그 무덤의 이름은 지구(地球)였다."
+            },
+            {
+                code: '04',
+                title: '~45억 4천만 년',
+                subtitle: 'THE MEMETIC PLAGUE',
+                lead: '~45억 4천만 년.',
+                text: "신들의 시점으로는 눈을 한 번 깜빡이는 찰나였고, 시체 위를 기어 다니는 미물의 시점으로는 45억 4천만 년이라는 아득한 세월이 흘렀다. 썩어가는 악마의 살점 위에서 기어코 생(生)과 명(命)을 얻어 태어난 악마의 자식들, 인류는 자신이 딛고 선 땅이 무엇인지 모른 채 문명을 쌓아 올렸다. 재앙은 앎에서 시작되었다. 어느 날, 인류 중 단 하나의 개체가 우연인지 저주인지 모를 깨달음 끝에 자신들의 부모가 누구인지, 발밑의 대지가 어떤 끔찍한 주검인지를 직시해 버렸다. 필멸자의 두뇌가 감당할 수 없는 진실은 곧장 변질된 정보. 일종의 정신적 역병이 되어 언어를 타고, 눈빛을 타고, 기록을 타고 들불처럼 번져 나갔다. 진실에 감염된 첫 번째 인류는 스스로의 눈을 뽑고 서로를 탐식하며 멸망했다."
+            },
+            {
+                code: '05',
+                title: '현재~',
+                subtitle: 'THE SECOND HUMANITY',
+                lead: '현재~.',
+                text: "그리고 지금, 한 번 씻겨 나간 무덤 위에 두 번째 인류가 어설프게 일상을 흉내 내며 살아가고 있다."
+            }
+        ];
 
         // 캐릭터 데이터 정의
         const CHARACTER_DATA = {
@@ -372,10 +736,10 @@
                     { key: '키 & 몸무게', val: '153cm & 47kg' }
                 ],
                 notes: [
-                    '교단 의식 생존자.',
-                    '모종의 이유로 머리가 잘린 이후 생존중.',
-                    '의식 이전의 기억 및 정보의 상실, 본인은 크게 신경 쓰지 않는듯 보인다.',
-                    '본인 혈액의 운동 에너지를 조작하는 이능의 확인.'
+                    '- 교단 의식 생존자.',
+                    '- 모종의 이유로 머리가 잘린 이후 생존중.',
+                    '- 의식 이전의 기억 및 정보의 상실, 본인은 크게 신경 쓰지 않는듯 보인다.',
+                    '- 본인 혈액의 운동 에너지를 조작하는 이능의 확인.'
                 ],
                 footerLeft: 'STATUS : ACTIVE / UNSTABLE',
                 footerRight: 'CLICK SCREEN TO CLOSE'
@@ -396,10 +760,10 @@
                     { key: '키 & 몸무게', val: '190cm & 가변형' }
                 ],
                 notes: [
-                    '가변형 형질의 신체를 지닌 것으로 보이며, 명암이 구분되지 않는 푸른 인간형의 외형을 하고 있다.',
-                    '인류, 즉 인간을 아끼고 보존하는 것을 목적으로 하는 정체불명의 존재. 일정 범위의 공간에 규칙을 부여하고, 그 규칙의 이행 여부에 따라 보상과 처벌을 내릴 수 있다.',
-                    '다수의 안위와 행복을 위해서라면 소수를 희생시키는 것도 마다하지 않으며, 설령 그것이 합당하지 않은 희생일지라도 \'경고\'를 명목으로 인간을 공격하는 모습을 보인다.',
-                    '규칙 부여 이전의 비활동기에는 공격적인 모습이 크게 보이지 않는다.'
+                    '- 가변형 형질의 신체를 지닌 것으로 보이며, 명암이 구분되지 않는 푸른 인간형의 외형을 하고 있다.',
+                    '- 인류, 즉 인간을 아끼고 보존하는 것을 목적으로 하는 정체불명의 존재. 일정 범위의 공간에 규칙을 부여하고, 그 규칙의 이행 여부에 따라 보상과 처벌을 내릴 수 있다.',
+                    '- 다수의 안위와 행복을 위해서라면 소수를 희생시키는 것도 마다하지 않으며, 설령 그것이 합당하지 않은 희생일지라도 \'경고\'를 명목으로 인간을 공격하는 모습을 보인다.',
+                    '- 규칙 부여 이전의 비활동기에는 공격적인 모습이 크게 보이지 않는다.'
                 ],
                 footerLeft: 'PHASE : RULE ENFORCEMENT',
                 footerRight: 'CLICK SCREEN TO CLOSE'
@@ -436,7 +800,7 @@
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0, 9.2); // 인트로 컷신 시작 시 원거리에서 진입
+        camera.position.set(0, 0, 9.2);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -476,7 +840,7 @@
         const ringMaterial = new THREE.LineBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.0, // 인트로 컷신 중 서서히 점등
+            opacity: 0.0,
             blending: THREE.AdditiveBlending
         });
 
@@ -688,7 +1052,6 @@
                     vec3 displacedNormal = normalize(cross(p1 - displacedPos, p2 - displacedPos));
                     vec3 viewNormal = normalize(normalMatrix * displacedNormal);
 
-                    // 인트로 어셈블리 컷신: 레이어별로 시차를 두고 나선형으로 수렴
                     float layerStart = aLayer * 0.16;
                     float layerProg = clamp((uIntroAssemble - layerStart) / 0.68, 0.0, 1.0);
                     float easeAsm = 1.0 - pow(1.0 - layerProg, 3.0);
@@ -748,7 +1111,6 @@
                         alpha *= 0.78;
                     }
 
-                    // 수렴 중일 때는 흩어진 입자들이 은은하게 빛나도록 보정
                     alpha = mix(alpha, max(alpha, 0.28), vScatter);
                     alpha += vMouseGlow * 0.55;
                     alpha *= softDot * uIntroAlpha;
@@ -845,7 +1207,7 @@
         const linesMat = new THREE.LineBasicMaterial({
             vertexColors: true,
             transparent: true,
-            opacity: 0.0, // 인트로 컷신 중 직조되며 점등
+            opacity: 0.0,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
@@ -853,7 +1215,7 @@
         const nodeLines = new THREE.LineSegments(linesGeo, linesMat);
         masterGroup.add(nodeLines);
 
-        // 4-2. 다레카 시퀀스용: 기존 오브와 동일한 외형의 복제 오브 그리드 (화면 밖 2겹 포함)
+        // 4-2. 다레카 시퀀스용 복제 오브 그리드
         const darekaGroup = new THREE.Group();
         let darekaClones = [];
 
@@ -892,7 +1254,6 @@
                     const startY = ORB_CENTER_Y + (gy - ORB_CENTER_Y) * 3.8;
 
                     const cloneObj = new THREE.Group();
-
                     const shell = new THREE.Points(cloneShellGeo, coreShellMat);
                     cloneObj.add(shell);
 
@@ -1011,6 +1372,309 @@
                 orbitTilt: (i % 3 - 1) * 0.55
             });
         }
+
+        // 5-2. [역사 / HISTORY] 동적 가로 입자선 & 5개 밀집 원형 확장 시스템
+        const HISTORY_NODE_NORM_X = [-0.82, -0.41, 0.0, 0.41, 0.82];
+        const HIST_PARTICLE_COUNT = 6800;
+        let historySpan = 4.0;
+        let historyCircleScale = 1.0;
+        let historyLineY = 0.58;
+
+        const historyGroup = new THREE.Group();
+        const historyNodeOpenCurrent = [0, 0, 0, 0, 0];
+        const historyNodeWorldPositions = Array.from({ length: 5 }, () => new THREE.Vector3());
+        let hoveredHistoryNode = -1;
+        let selectedHistoryNode = -1;
+        const visitedHistoryNodes = new Set();
+
+        function evalHistoryWave(nx, t) {
+            return Math.sin(nx * 4.2 - t * 1.15) * 0.052
+                 + Math.sin(nx * 8.6 + t * 0.78) * 0.020
+                 + Math.cos(nx * 2.1 - t * 0.55) * 0.032;
+        }
+
+        function updateHistoryLayout() {
+            const vFov = THREE.MathUtils.degToRad(camera.fov);
+            const visHeight = 2 * Math.tan(vFov / 2) * CAMERA_DEFAULT_Z;
+            const visWidth = visHeight * camera.aspect;
+            const isMobile = window.innerWidth <= 760;
+
+            historySpan = Math.min(4.65, visWidth * (isMobile ? 0.43 : 0.40));
+            historyCircleScale = Math.min(1.0, historySpan / 2.65);
+            historyLineY = isMobile ? 0.85 : 0.58;
+
+            historyGroup.position.y = historyLineY;
+            historyLineMat.uniforms.uSpan.value = historySpan;
+            historyLineMat.uniforms.uCircleScale.value = historyCircleScale;
+        }
+
+        function gaussianRandom() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        const histPositions = new Float32Array(HIST_PARTICLE_COUNT * 3);
+        const histBaseData = new Float32Array(HIST_PARTICLE_COUNT * 3); // x: normX, y: verticalOffset, z: depthOffset
+        const histSeeds = new Float32Array(HIST_PARTICLE_COUNT * 3);
+        const histScatter = new Float32Array(HIST_PARTICLE_COUNT * 3);
+        const histSizeWeight = new Float32Array(HIST_PARTICLE_COUNT);
+
+        for (let i = 0; i < HIST_PARTICLE_COUNT; i++) {
+            let normX;
+            let vSpread;
+            let sizeW;
+
+            // 앞쪽 42%: 전체 가로선 필라멘트를 구성 / 나머지 58%: 5개 지점에 원형 밀집도 형성
+            if (i < HIST_PARTICLE_COUNT * 0.42) {
+                normX = (Math.random() * 2.16 - 1.08);
+                vSpread = gaussianRandom() * 0.036;
+                sizeW = 0.85 + Math.random() * 0.7;
+            } else {
+                const nodeIdx = i % 5;
+                const centerNX = HISTORY_NODE_NORM_X[nodeIdx];
+                // 중심부에 원형 밀집도가 뚜렷하게 높고 양옆 선으로 부드럽게 녹아듦
+                const clusterRadius = Math.abs(gaussianRandom()) * 0.048;
+                const ang = Math.random() * Math.PI * 2;
+                normX = centerNX + Math.cos(ang) * clusterRadius * 1.15;
+                vSpread = Math.sin(ang) * clusterRadius * 1.45 + gaussianRandom() * 0.022;
+                sizeW = 1.05 + Math.random() * 0.85;
+            }
+
+            histPositions[i * 3] = 0;
+            histPositions[i * 3 + 1] = 0;
+            histPositions[i * 3 + 2] = 0;
+
+            histBaseData[i * 3] = normX;
+            histBaseData[i * 3 + 1] = vSpread;
+            histBaseData[i * 3 + 2] = gaussianRandom() * 0.035;
+
+            histSeeds[i * 3] = Math.random();
+            histSeeds[i * 3 + 1] = Math.random();
+            histSeeds[i * 3 + 2] = Math.random();
+
+            const scAngle = Math.random() * Math.PI * 2;
+            const scRad = 1.2 + Math.random() * 4.5;
+            histScatter[i * 3] = (Math.random() - 0.5) * 9.5;
+            histScatter[i * 3 + 1] = Math.sin(scAngle) * scRad * 0.65;
+            histScatter[i * 3 + 2] = (Math.random() - 0.5) * 4.0;
+
+            histSizeWeight[i] = sizeW;
+        }
+
+        const historyLineGeo = new THREE.BufferGeometry();
+        historyLineGeo.setAttribute('position', new THREE.BufferAttribute(histPositions, 3));
+        historyLineGeo.setAttribute('aBase', new THREE.BufferAttribute(histBaseData, 3));
+        historyLineGeo.setAttribute('aSeed', new THREE.BufferAttribute(histSeeds, 3));
+        historyLineGeo.setAttribute('aScatter', new THREE.BufferAttribute(histScatter, 3));
+        historyLineGeo.setAttribute('aSizeW', new THREE.BufferAttribute(histSizeWeight, 1));
+
+        const historyLineMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+                uSpan: { value: historySpan },
+                uCircleScale: { value: historyCircleScale },
+                uConverge: { value: 0.0 },
+                uOpacity: { value: 0.0 },
+                uNodeNormX: { value: [...HISTORY_NODE_NORM_X] },
+                uNodeOpen: { value: [0, 0, 0, 0, 0] }
+            },
+            vertexShader: `
+                attribute vec3 aBase;
+                attribute vec3 aSeed;
+                attribute vec3 aScatter;
+                attribute float aSizeW;
+
+                uniform float uTime;
+                uniform float uPixelRatio;
+                uniform float uSpan;
+                uniform float uCircleScale;
+                uniform float uConverge;
+                uniform float uNodeNormX[5];
+                uniform float uNodeOpen[5];
+
+                varying float vAlpha;
+                varying float vRimBoost;
+                varying float vClusterGlow;
+
+                float evalWave(float nx, float t) {
+                    return sin(nx * 4.2 - t * 1.15) * 0.052
+                         + sin(nx * 8.6 + t * 0.78) * 0.020
+                         + cos(nx * 2.1 - t * 0.55) * 0.032;
+                }
+
+                void main() {
+                    float t = uTime;
+                    // 가로선 위에서의 동적 유동 (호흡 및 미세 흐름)
+                    float flowShift = sin(t * (0.45 + aSeed.x * 0.4) + aSeed.y * 6.2831) * 0.014;
+                    float nx = aBase.x + flowShift;
+
+                    float waveY = evalWave(nx, t);
+                    float localJitterY = sin(t * (1.2 + aSeed.y * 1.4) + aSeed.z * 6.2831) * 0.014;
+
+                    vec3 linePos = vec3(
+                        nx * uSpan,
+                        waveY + aBase.y + localJitterY,
+                        aBase.z + cos(t * 0.9 + aSeed.x * 6.2831) * 0.018
+                    );
+
+                    // 5개 지점의 기본 밀집 밝기 및 원형 확장
+                    float rimBoost = 0.0;
+                    float clusterProximity = 0.0;
+                    float inflR = 0.56 * uCircleScale;
+                    float targetBaseR = 0.255 * uCircleScale;
+
+                    for (int k = 0; k < 5; k++) {
+                        float cnx = uNodeNormX[k];
+                        vec2 center = vec2(cnx * uSpan, evalWave(cnx, t));
+                        vec2 diff = linePos.xy - center;
+                        float d = length(diff);
+
+                        float prox = smoothstep(0.28 * uCircleScale, 0.0, d);
+                        clusterProximity = max(clusterProximity, prox);
+
+                        float openAmt = uNodeOpen[k];
+                        if (openAmt > 0.001 && d < inflR) {
+                            float normD = d / inflR;
+                            float fallbackAng = aSeed.z * 6.2831853 + t * (0.4 + aSeed.x * 0.35);
+                            vec2 radDir = (d > 0.012) ? normalize(diff) : vec2(cos(fallbackAng), sin(fallbackAng));
+
+                            // 열릴 때 미세한 회전 와류
+                            float swirl = openAmt * (1.0 - normD) * 0.52 * (aSeed.y - 0.3);
+                            float cs = cos(swirl);
+                            float sn = sin(swirl);
+                            radDir = vec2(radDir.x * cs - radDir.y * sn, radDir.x * sn + radDir.y * cs);
+
+                            float ringR = targetBaseR + (aSeed.y - 0.5) * 0.068 * uCircleScale;
+                            float pushedR = mix(ringR, inflR, pow(normD, 1.38));
+                            vec2 targetXY = center + radDir * pushedR;
+
+                            // 중심부 입자들은 완전히 링 바깥으로 밀려나 내부에 깨끗한 원형 공간 확보
+                            float pushWeight = openAmt * smoothstep(1.0, 0.72, normD * 0.95);
+                            linePos.xy = mix(linePos.xy, targetXY, clamp(pushWeight, 0.0, 1.0));
+
+                            float ringGlow = exp(-pow((pushedR - targetBaseR) / (0.065 * uCircleScale), 2.0));
+                            rimBoost = max(rimBoost, openAmt * ringGlow);
+                        }
+                    }
+
+                    // 수렴 컷신 보간
+                    float pDelay = aSeed.x * 0.26;
+                    float conv = clamp((uConverge - pDelay) / 0.74, 0.0, 1.0);
+                    float convEase = 1.0 - pow(1.0 - conv, 3.0);
+
+                    vec3 pos = mix(aScatter, linePos, convEase);
+
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_Position = projectionMatrix * mvPosition;
+
+                    float edgeFade = smoothstep(1.12, 0.88, abs(nx));
+                    vAlpha = (0.34 + clusterProximity * 0.32 + rimBoost * 0.48) * edgeFade;
+                    vRimBoost = rimBoost;
+                    vClusterGlow = clusterProximity;
+
+                    float pSize = (1.65 * aSizeW + rimBoost * 1.15) * uPixelRatio;
+                    gl_PointSize = pSize * (5.6 / -mvPosition.z);
+                }
+            `,
+            fragmentShader: `
+                uniform float uOpacity;
+                varying float vAlpha;
+                varying float vRimBoost;
+                varying float vClusterGlow;
+
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+
+                    float soft = smoothstep(0.5, 0.06, dist);
+                    vec3 col = mix(vec3(0.84, 0.87, 0.94), vec3(1.0, 1.0, 1.0), clamp(vClusterGlow * 0.6 + vRimBoost, 0.0, 1.0));
+                    gl_FragColor = vec4(col, clamp(vAlpha * soft * uOpacity, 0.0, 0.95));
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const historyLinePoints = new THREE.Points(historyLineGeo, historyLineMat);
+        historyGroup.add(historyLinePoints);
+
+        // 5개 원형 확장 내부의 흰 점(코어 닷 + 외곽 조준 링 + 글로우)
+        const historyCoreNodes = [];
+        const coreDotGeo = new THREE.CircleGeometry(0.048, 32);
+        const coreRingGeo = new THREE.RingGeometry(0.115, 0.123, 48);
+
+        for (let i = 0; i < 5; i++) {
+            const nodeGroup = new THREE.Group();
+
+            const dotMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.0,
+                depthWrite: false
+            });
+            const dotMesh = new THREE.Mesh(coreDotGeo, dotMat);
+
+            const haloMat = new THREE.SpriteMaterial({
+                map: glowTex,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const haloSprite = new THREE.Sprite(haloMat);
+            haloSprite.scale.set(0.32, 0.32, 0.32);
+
+            const reticleMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.0,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const reticleMesh = new THREE.Mesh(coreRingGeo, reticleMat);
+
+            nodeGroup.add(haloSprite);
+            nodeGroup.add(dotMesh);
+            nodeGroup.add(reticleMesh);
+            historyGroup.add(nodeGroup);
+
+            historyCoreNodes.push({
+                group: nodeGroup,
+                dotMesh,
+                dotMat,
+                haloSprite,
+                haloMat,
+                reticleMesh,
+                reticleMat
+            });
+        }
+
+        // 미세한 우주 배경 부유 먼지 (History 전용 깊이감 연출)
+        const DUST_COUNT = 160;
+        const dustPositions = new Float32Array(DUST_COUNT * 3);
+        for (let i = 0; i < DUST_COUNT; i++) {
+            dustPositions[i * 3] = (Math.random() - 0.5) * 12.0;
+            dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 6.5;
+            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 3.5 - 1.0;
+        }
+        const dustGeo = new THREE.BufferGeometry();
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+        const dustMat = new THREE.PointsMaterial({
+            color: 0xdce4f5,
+            size: 0.025,
+            transparent: true,
+            opacity: 0.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const historyDust = new THREE.Points(dustGeo, dustMat);
+        historyGroup.add(historyDust);
 
         // 6. 호스트 푸른 모자이크 2D 캔버스
         const mosaicCanvas = document.getElementById('mosaic-canvas');
@@ -1243,6 +1907,122 @@
             });
         }
 
+        // 8-2. [역사 / HISTORY] UI 컨트롤 및 마커 초기화
+        const historyUI = document.getElementById('history-ui');
+        const historyMarkersContainer = document.getElementById('history-markers');
+        const historyReturnBtn = document.getElementById('history-return-btn');
+        const historyPanel = document.getElementById('history-panel');
+        const historyEraCode = document.getElementById('history-era-code');
+        const historyEraName = document.getElementById('history-era-name');
+        const historyEraSub = document.getElementById('history-era-sub');
+        const historyPanelBody = document.getElementById('history-panel-body');
+        const historyPrevBtn = document.getElementById('history-prev-btn');
+        const historyNextBtn = document.getElementById('history-next-btn');
+        const historyClosePanelBtn = document.getElementById('history-close-panel-btn');
+
+        const historyMarkerEls = HISTORY_DATA.map((item, idx) => {
+            const el = document.createElement('div');
+            el.className = 'history-marker';
+            el.innerHTML = `
+                <div class="history-marker-tag">${item.title}</div>
+                <div class="history-marker-index">${item.code}</div>
+            `;
+            el.addEventListener('pointerenter', () => {
+                if (seqState === 'HISTORY_ACTIVE') {
+                    hoveredHistoryNode = idx;
+                    document.body.classList.add('history-hover');
+                }
+            });
+            el.addEventListener('pointerleave', () => {
+                if (hoveredHistoryNode === idx) {
+                    hoveredHistoryNode = -1;
+                    document.body.classList.remove('history-hover');
+                }
+            });
+            el.addEventListener('pointerdown', (e) => e.stopPropagation());
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (seqState === 'HISTORY_ACTIVE') {
+                    selectHistoryNode(idx);
+                }
+            });
+            historyMarkersContainer.appendChild(el);
+            return el;
+        });
+
+        [historyPanel, historyReturnBtn].forEach(el => {
+            ['pointerdown', 'mousedown', 'click'].forEach(evt => {
+                el.addEventListener(evt, (e) => e.stopPropagation());
+            });
+        });
+
+        function updateHistoryMarkerClasses() {
+            const nextSuggested = selectedHistoryNode >= 0 && selectedHistoryNode < 4
+                ? selectedHistoryNode + 1
+                : (visitedHistoryNodes.size === 0 ? 0 : -1);
+
+            historyMarkerEls.forEach((el, idx) => {
+                el.classList.toggle('hovered', hoveredHistoryNode === idx);
+                el.classList.toggle('selected', selectedHistoryNode === idx);
+                el.classList.toggle('visited', visitedHistoryNodes.has(idx));
+                el.classList.toggle('next-cue', nextSuggested === idx);
+            });
+        }
+
+        function selectHistoryNode(idx) {
+            if (idx < 0 || idx >= HISTORY_DATA.length) return;
+            selectedHistoryNode = idx;
+            visitedHistoryNodes.add(idx);
+
+            const item = HISTORY_DATA[idx];
+            clearScrambleTimers();
+
+            historyEraCode.textContent = `${item.code} / 05`;
+            historyEraName.textContent = item.title;
+            historyEraSub.textContent = item.subtitle;
+
+            scrambleReveal(historyEraName, item.title, 380, 0);
+            scrambleReveal(historyEraSub, item.subtitle, 450, 40);
+
+            historyPanelBody.innerHTML = `<div class="history-text-fade"><span class="history-lead-word">${item.lead}</span> ${item.text}</div>`;
+            historyPanelBody.scrollTop = 0;
+
+            historyPrevBtn.disabled = (idx === 0);
+            historyNextBtn.disabled = (idx === HISTORY_DATA.length - 1);
+
+            historyPanel.classList.add('visible');
+            updateHistoryMarkerClasses();
+        }
+
+        function closeHistoryTextPanel() {
+            selectedHistoryNode = -1;
+            historyPanel.classList.remove('visible');
+            updateHistoryMarkerClasses();
+        }
+
+        historyPrevBtn.addEventListener('click', () => {
+            if (selectedHistoryNode > 0) selectHistoryNode(selectedHistoryNode - 1);
+        });
+        historyNextBtn.addEventListener('click', () => {
+            if (selectedHistoryNode < HISTORY_DATA.length - 1) selectHistoryNode(selectedHistoryNode + 1);
+        });
+        historyClosePanelBtn.addEventListener('click', closeHistoryTextPanel);
+        historyReturnBtn.addEventListener('click', () => exitHistorySequence());
+
+        window.addEventListener('keydown', (e) => {
+            if (seqState === 'HISTORY_ACTIVE') {
+                if (e.key === 'Escape') {
+                    exitHistorySequence();
+                } else if (e.key === 'ArrowRight') {
+                    const nextIdx = selectedHistoryNode < 0 ? 0 : Math.min(HISTORY_DATA.length - 1, selectedHistoryNode + 1);
+                    selectHistoryNode(nextIdx);
+                } else if (e.key === 'ArrowLeft') {
+                    const prevIdx = selectedHistoryNode <= 0 ? 0 : selectedHistoryNode - 1;
+                    selectHistoryNode(prevIdx);
+                }
+            }
+        });
+
         // 9. 상태 머신 및 인터랙션 (최초 진입 시 INTRO_CUTSCENE 실행)
         let seqState = 'INTRO_CUTSCENE';
         let seqStartTime = 0;
@@ -1292,6 +2072,29 @@
             seqStartTime = clock.getElapsedTime();
         }
 
+        function triggerHistorySequence() {
+            if (seqState !== 'NORMAL') return;
+            commandInput.blur();
+            commandWrapper.classList.add('hidden');
+            document.body.classList.add('history-mode');
+            seqState = 'HISTORY_ORB_EXIT';
+            seqStartTime = clock.getElapsedTime();
+        }
+
+        function exitHistorySequence() {
+            if (seqState !== 'HISTORY_ACTIVE' && seqState !== 'HISTORY_CONVERGE') return;
+            clearScrambleTimers();
+            historyUI.classList.remove('active');
+            historyPanel.classList.remove('visible');
+            document.body.classList.remove('history-mode', 'history-hover');
+
+            hoveredHistoryNode = -1;
+            selectedHistoryNode = -1;
+
+            seqState = 'HISTORY_RESTORING';
+            seqStartTime = clock.getElapsedTime();
+        }
+
         function handleCommandValue(raw) {
             const rawTrim = raw.trim();
             const val = rawTrim.toUpperCase();
@@ -1303,6 +2106,8 @@
                 triggerCharSequence('host');
             } else if (rawTrim === '다레카' || rawTrim === 'だれか') {
                 triggerDarekaSequence();
+            } else if (val === 'HISTORY' || rawTrim === '역사') {
+                triggerHistorySequence();
             }
         }
 
@@ -1346,9 +2151,39 @@
         const axisY = new THREE.Vector3(0, 1, 0);
         const axisX = new THREE.Vector3(1, 0, 0);
 
+        function hitTestHistoryNode(clientX, clientY) {
+            const ndc = new THREE.Vector2(
+                (clientX / window.innerWidth) * 2 - 1,
+                -(clientY / window.innerHeight) * 2 + 1
+            );
+            raycaster.setFromCamera(ndc, camera);
+            const hit = new THREE.Vector3();
+            raycaster.ray.intersectPlane(interactPlane, hit);
+
+            let bestIdx = -1;
+            let bestDist = 0.48 * historyCircleScale;
+            for (let i = 0; i < 5; i++) {
+                const dx = hit.x - historyNodeWorldPositions[i].x;
+                const dy = hit.y - historyNodeWorldPositions[i].y;
+                const d = Math.hypot(dx, dy);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                }
+            }
+            return bestIdx;
+        }
+
         window.addEventListener('pointerdown', (e) => {
             if (seqState === 'CHAR_HUD') {
                 closeCharacterEvent();
+                return;
+            }
+            if (seqState === 'HISTORY_ACTIVE') {
+                const hitIdx = hitTestHistoryNode(e.clientX, e.clientY);
+                if (hitIdx !== -1) {
+                    selectHistoryNode(hitIdx);
+                }
                 return;
             }
             if (seqState !== 'NORMAL') return;
@@ -1386,6 +2221,7 @@
         // 10. 동적 애니메이션 루프
         const clock = new THREE.Clock();
         const tempVec = new THREE.Vector3();
+        const projVec = new THREE.Vector3();
 
         function animate() {
             requestAnimationFrame(animate);
@@ -1393,7 +2229,6 @@
             const elapsedTime = clock.getElapsedTime();
             let currentAnaglyph = 0.0;
             let currentFlashWhite = 0.0;
-
             let introNodeRadiusFactor = 1.0;
 
             // --- 사이트 최초 진입 인트로 어셈블리 컷신 ---
@@ -1403,32 +2238,26 @@
                 const p = Math.min(1.0, dt / duration);
                 const camEase = 1.0 - Math.pow(1.0 - p, 3.0);
 
-                // 카메라가 원거리에서 오브로 서서히 안착
                 camera.position.z = THREE.MathUtils.lerp(9.2, CAMERA_DEFAULT_Z, camEase);
 
-                // 1) 중심 3중 입자 쉘 수렴 (0.0s ~ 2.4s)
                 const coreProg = Math.min(1.0, dt / 2.4);
                 coreShellMat.uniforms.uIntroAssemble.value = coreProg;
                 coreShellMat.uniforms.uIntroAlpha.value = Math.min(1.0, dt / 0.55);
 
-                // 2) 궤도 링 순차 전개 (0.9s ~ 2.5s)
                 const ringProg = THREE.MathUtils.clamp((dt - 0.9) / 1.5, 0.0, 1.0);
                 ringMaterial.opacity = 0.26 * (1.0 - Math.pow(1.0 - ringProg, 2.0));
 
-                // 3) 외부 노드맵 전개 및 신경망 직조 (1.7s ~ 3.1s)
                 const nodeProg = THREE.MathUtils.clamp((dt - 1.7) / 1.4, 0.0, 1.0);
                 const nodeEase = 1.0 - Math.pow(1.0 - nodeProg, 3.0);
                 introNodeRadiusFactor = 0.35 + 0.65 * nodeEase;
                 outerMat.uniforms.uOpacity.value = nodeEase;
                 linesMat.opacity = 0.78 * THREE.MathUtils.smoothstep(nodeProg, 0.25, 1.0);
 
-                // 완성 직전 미세한 애너글리프 점화 잔상
                 if (dt > 2.4 && dt < 3.2) {
                     const pulseP = (dt - 2.4) / 0.8;
                     currentAnaglyph = Math.sin(pulseP * Math.PI) * 0.28;
                 }
 
-                // 컷신 중 오브의 우아한 초기 회전
                 masterGroup.rotation.y = (1.0 - camEase) * -0.9;
 
                 if (p >= 1.0) {
@@ -1439,6 +2268,89 @@
                     outerMat.uniforms.uOpacity.value = 1.0;
                     linesMat.opacity = 0.78;
                     seqState = 'NORMAL';
+                    commandWrapper.classList.remove('hidden');
+                }
+            }
+
+            // --- [역사 / HISTORY] 시퀀스 ---
+            else if (seqState === 'HISTORY_ORB_EXIT') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.75;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.2);
+
+                masterGroup.scale.setScalar(Math.max(0.03, 1.0 - easeIn * 0.96));
+                masterGroup.position.y = ORB_CENTER_Y + easeIn * 7.8;
+                currentBgVec.lerpVectors(MAIN_BG_COLOR, HISTORY_BG_COLOR, p);
+
+                if (p >= 1.0) {
+                    scene.remove(masterGroup);
+                    isOrbActive = false;
+
+                    hoveredHistoryNode = -1;
+                    selectedHistoryNode = -1;
+                    visitedHistoryNodes.clear();
+                    historyNodeOpenCurrent.fill(0);
+                    historyLineMat.uniforms.uNodeOpen.value = [0, 0, 0, 0, 0];
+
+                    updateHistoryLayout();
+                    updateHistoryMarkerClasses();
+
+                    historyLineMat.uniforms.uConverge.value = 0.0;
+                    historyLineMat.uniforms.uOpacity.value = 0.0;
+                    dustMat.opacity = 0.0;
+
+                    scene.add(historyGroup);
+                    seqState = 'HISTORY_CONVERGE';
+                    seqStartTime = elapsedTime;
+                }
+            } else if (seqState === 'HISTORY_CONVERGE') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 1.45;
+                const p = Math.min(1.0, dt / duration);
+                const ease = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                historyLineMat.uniforms.uConverge.value = ease;
+                historyLineMat.uniforms.uOpacity.value = Math.min(1.0, p * 1.4);
+                dustMat.opacity = 0.32 * ease;
+
+                if (p >= 1.0) {
+                    historyLineMat.uniforms.uConverge.value = 1.0;
+                    historyLineMat.uniforms.uOpacity.value = 1.0;
+                    dustMat.opacity = 0.32;
+                    seqState = 'HISTORY_ACTIVE';
+                    historyUI.classList.add('active');
+                }
+            } else if (seqState === 'HISTORY_RESTORING') {
+                const dt = elapsedTime - seqStartTime;
+                const duration = 0.85;
+                const p = Math.min(1.0, dt / duration);
+                const easeIn = Math.pow(p, 2.0);
+                const easeOut = 1.0 - Math.pow(1.0 - p, 3.0);
+
+                historyLineMat.uniforms.uConverge.value = Math.max(0.0, 1.0 - easeIn * 1.15);
+                historyLineMat.uniforms.uOpacity.value = Math.max(0.0, 1.0 - p * 1.65);
+                dustMat.opacity = 0.32 * Math.max(0.0, 1.0 - p * 1.65);
+                currentBgVec.lerpVectors(HISTORY_BG_COLOR, MAIN_BG_COLOR, easeOut);
+
+                if (p >= 0.35 && !isOrbActive) {
+                    scene.add(masterGroup);
+                    masterGroup.position.set(0, ORB_CENTER_Y, 0);
+                    masterGroup.scale.setScalar(0.001);
+                    isOrbActive = true;
+                }
+                if (isOrbActive) {
+                    const orbP = Math.max(0.0, (p - 0.35) / 0.65);
+                    const orbEase = 1.0 - Math.pow(1.0 - orbP, 3.0);
+                    masterGroup.scale.setScalar(Math.max(0.001, orbEase));
+                }
+
+                if (p >= 1.0) {
+                    scene.remove(historyGroup);
+                    currentBgVec.copy(MAIN_BG_COLOR);
+                    masterGroup.scale.setScalar(1.0);
+                    seqState = 'NORMAL';
+                    commandInput.value = '';
                     commandWrapper.classList.remove('hidden');
                 }
             }
@@ -1695,6 +2607,78 @@
                 }
             }
 
+            // --- [역사 / HISTORY] 실시간 파동, 원형 확장 & 내부 흰 점 연산 ---
+            if (seqState === 'HISTORY_CONVERGE' || seqState === 'HISTORY_ACTIVE' || seqState === 'HISTORY_RESTORING') {
+                historyLineMat.uniforms.uTime.value = elapsedTime;
+                historyDust.rotation.y = Math.sin(elapsedTime * 0.08) * 0.06;
+
+                let newHover = -1;
+                if (seqState === 'HISTORY_ACTIVE' && isMouseInside) {
+                    raycaster.setFromCamera(mouseNDC, camera);
+                    raycaster.ray.intersectPlane(interactPlane, worldMousePos);
+
+                    let minDist = 0.45 * historyCircleScale;
+                    for (let i = 0; i < 5; i++) {
+                        const d = Math.hypot(
+                            worldMousePos.x - historyNodeWorldPositions[i].x,
+                            worldMousePos.y - historyNodeWorldPositions[i].y
+                        );
+                        if (d < minDist) {
+                            minDist = d;
+                            newHover = i;
+                        }
+                    }
+                }
+
+                if (seqState === 'HISTORY_ACTIVE' && newHover !== hoveredHistoryNode) {
+                    hoveredHistoryNode = newHover;
+                    document.body.classList.toggle('history-hover', hoveredHistoryNode !== -1);
+                    updateHistoryMarkerClasses();
+                }
+
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+
+                for (let i = 0; i < 5; i++) {
+                    const nx = HISTORY_NODE_NORM_X[i];
+                    const localX = nx * historySpan;
+                    const localY = evalHistoryWave(nx, elapsedTime);
+
+                    historyNodeWorldPositions[i].set(localX, historyLineY + localY, 0);
+
+                    const targetOpen = (seqState === 'HISTORY_ACTIVE' && (hoveredHistoryNode === i || selectedHistoryNode === i)) ? 1.0 : 0.0;
+                    historyNodeOpenCurrent[i] += (targetOpen - historyNodeOpenCurrent[i]) * 0.14;
+                    if (Math.abs(targetOpen - historyNodeOpenCurrent[i]) < 0.001) {
+                        historyNodeOpenCurrent[i] = targetOpen;
+                    }
+                    historyLineMat.uniforms.uNodeOpen.value[i] = historyNodeOpenCurrent[i];
+
+                    const openAmt = historyNodeOpenCurrent[i];
+                    const core = historyCoreNodes[i];
+                    core.group.position.set(localX, localY, 0.03);
+
+                    const pulse = (selectedHistoryNode === i) ? (1.0 + Math.sin(elapsedTime * 3.8) * 0.14) : 1.0;
+                    const dotScale = Math.max(0.001, openAmt * historyCircleScale * pulse);
+                    core.dotMesh.scale.setScalar(dotScale);
+                    core.dotMat.opacity = Math.min(1.0, openAmt * 1.15);
+
+                    core.haloSprite.scale.setScalar(Math.max(0.001, 0.36 * openAmt * historyCircleScale * pulse));
+                    core.haloMat.opacity = 0.85 * openAmt;
+
+                    core.reticleMesh.scale.setScalar(Math.max(0.001, (0.75 + 0.25 * openAmt) * historyCircleScale));
+                    core.reticleMat.opacity = (selectedHistoryNode === i ? 0.55 : 0.28) * openAmt;
+                    core.reticleMesh.rotation.z = elapsedTime * 0.4 + i;
+
+                    if (seqState === 'HISTORY_ACTIVE') {
+                        projVec.copy(historyNodeWorldPositions[i]).project(camera);
+                        const sx = (projVec.x * 0.5 + 0.5) * winW;
+                        const sy = (-projVec.y * 0.5 + 0.5) * winH;
+                        historyMarkerEls[i].style.left = `${sx.toFixed(1)}px`;
+                        historyMarkerEls[i].style.top = `${sy.toFixed(1)}px`;
+                    }
+                }
+            }
+
             coreShellMat.uniforms.uTime.value = elapsedTime;
 
             // --- 오브 활성 상태 연산 ---
@@ -1888,6 +2872,9 @@
             renderer.setSize(width, height);
             renderer.setPixelRatio(dpr);
             coreShellMat.uniforms.uPixelRatio.value = dpr;
+            historyLineMat.uniforms.uPixelRatio.value = dpr;
+
+            updateHistoryLayout();
 
             composer.setSize(width, height);
             postPass.uniforms.uResolution.value.set(width, height);
@@ -1897,3 +2884,4 @@
     </script>
 </body>
 </html>
+```
